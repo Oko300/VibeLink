@@ -1,11 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 
-export function useSocket(sessionId, displayName, role) {
+export function useSocket(sessionId, displayName, role, shouldJoin) {
   const socketRef = useRef(null)
+  const peerConnections = useRef({})
+  const localStreamRef = useRef(null)
   const [messages, setMessages] = useState([])
   const [viewers, setViewers] = useState([])
   const [connected, setConnected] = useState(false)
+  const [remoteStream, setRemoteStream] = useState(null)
+  const [sessionPaused, setSessionPaused] = useState(false)
 
   useEffect(() => {
     if (!sessionId) return
@@ -16,9 +20,16 @@ export function useSocket(sessionId, displayName, role) {
     socketRef.current = socket
 
     socket.on('connect', () => {
-      setConnected(true)
-      socket.emit('join_session', { sessionId, displayName, role })
-    })
+      setConnected(true);
+    });
+
+    socket.on('session_paused', () => setSessionPaused(true));
+    socket.on('session_resumed', () => setSessionPaused(false));
+
+    // Only emit join_session if shouldJoin is true, typically for viewers after they enter their name
+    if (shouldJoin) {
+      socket.emit('join_session', { sessionId, displayName, role });
+    }
 
     socket.on('chat_message', (msg) => {
       setMessages(prev => [...prev, msg])
@@ -49,6 +60,71 @@ export function useSocket(sessionId, displayName, role) {
     })
 
     socket.on('kicked', () => {
+    // WebRTC: Builder side - initiate offer to new viewer
+    socket.on('viewer_joined_webrtc', async ({ viewerSocketId }) => {
+      if (!localStreamRef.current) return;
+      
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      peerConnections.current[viewerSocketId] = pc;
+      
+      localStreamRef.current.getTracks().forEach(track => {
+        pc.addTrack(track, localStreamRef.current);
+      });
+      
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('webrtc_ice_candidate', {
+            targetSocketId: viewerSocketId,
+            candidate: event.candidate
+          });
+        }
+      };
+      
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      socket.emit('webrtc_offer', { targetSocketId: viewerSocketId, offer });
+    });
+
+    // WebRTC: Viewer side - create answer to builder's offer
+    socket.on('webrtc_offer', async ({ from, offer }) => {
+      const pc = new RTCPeerConnection({
+        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+      });
+      peerConnections.current[from] = pc;
+      
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('webrtc_ice_candidate', {
+            targetSocketId: from,
+            candidate: event.candidate
+          });
+        }
+      };
+      
+      pc.ontrack = (event) => {
+        setRemoteStream(event.streams[0]);
+      };
+      
+      await pc.setRemoteDescription(new RTCSessionDescription(offer));
+      const answer = await pc.createAnswer();
+      await pc.setLocalDescription(answer);
+      socket.emit('webrtc_answer', { targetSocketId: from, answer });
+    });
+
+    // WebRTC: Builder side - receive answer from viewer
+    socket.on('webrtc_answer', async ({ from, answer }) => {
+      const pc = peerConnections.current[from];
+      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
+    });
+
+    // WebRTC: Both sides - exchange ICE candidates
+    socket.on('webrtc_ice_candidate', async ({ from, candidate }) => {
+      const pc = peerConnections.current[from];
+      if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
+    });
+
       alert('You have been removed from this session.')
       window.location.href = '/'
     })
@@ -70,5 +146,7 @@ export function useSocket(sessionId, displayName, role) {
     }
   }
 
-  return { messages, viewers, connected, sendMessage, kickViewer }
+  const setLocalStream = (stream) => { localStreamRef.current = stream }
+
+  return { messages, viewers, connected, sendMessage, kickViewer, socket: socketRef.current, setLocalStream, remoteStream, sessionPaused }
 }

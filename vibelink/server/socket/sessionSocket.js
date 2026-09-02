@@ -16,7 +16,18 @@ export function initSessionSocket(io) {
         sessionStore.addViewer(sessionId, {
           socketId: socket.id,
           displayName: socket.data.displayName
-        })
+        });
+
+        // If viewer joining, notify the builder to initiate WebRTC
+        const room = io.sockets.adapter.rooms.get(sessionId);
+        if (room) {
+          room.forEach(socketId => {
+            const s = io.sockets.sockets.get(socketId);
+            if (s && s.data.role === 'builder') {
+              s.emit('viewer_joined_webrtc', { viewerSocketId: socket.id });
+            }
+          });
+        }
       }
 
       // Notify everyone in the room that someone joined
@@ -60,6 +71,30 @@ export function initSessionSocket(io) {
       sessionStore.removeViewer(sessionId, targetSocketId)
       io.to(sessionId).emit('viewer_list', sessionStore.getViewers(sessionId))
     })
+
+    // Handle session pause/resume
+    socket.on('session_paused', ({ sessionId }) => {
+      socket.to(sessionId).emit('session_paused');
+    });
+
+    socket.on('session_resumed', ({ sessionId }) => {
+      socket.to(sessionId).emit('session_resumed');
+    });
+
+
+    // WebRTC signaling
+    socket.on('webrtc_offer', ({ targetSocketId, offer }) => {
+      io.to(targetSocketId).emit('webrtc_offer', { from: socket.id, offer });
+    });
+
+    socket.on('webrtc_answer', ({ targetSocketId, answer }) => {
+      io.to(targetSocketId).emit('webrtc_answer', { from: socket.id, answer });
+    });
+
+    socket.on('webrtc_ice_candidate', ({ targetSocketId, candidate }) => {
+      io.to(targetSocketId).emit('webrtc_ice_candidate', { from: socket.id, candidate });
+    });
+
 
     // Handle disconnect
     socket.on('disconnect', () => {
