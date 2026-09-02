@@ -1,0 +1,5 @@
+litellm_config.yaml
+*.yaml
+.env
+.env.*
+!.env.example
