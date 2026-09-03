@@ -34,6 +34,7 @@ export default function ViewerRoom() {
   useEffect(() => {
     if (remoteStream && videoRef.current) {
       videoRef.current.srcObject = remoteStream;
+      videoRef.current.play().catch(e => console.log('autoplay blocked:', e));
     }
   }, [remoteStream]);
 
@@ -193,7 +194,7 @@ export default function ViewerRoom() {
             <div style={styles.streamColumn}>
               <div style={styles.videoWrapper}>
                 {remoteStream ? (
-                  <video ref={videoRef} autoPlay playsInline style={{width: '100%', borderRadius: '8px'}} />
+                  <video ref={videoRef} autoPlay playsInline muted controls style={{width: '100%', borderRadius: '8px'}} />
                 ) : (
                   <p style={styles.placeholderText}>Waiting for builder to go live...</p>
                 )}

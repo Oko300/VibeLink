@@ -21,15 +21,21 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
 
     socket.on('connect', () => {
       setConnected(true);
+      if (shouldJoin) {
+        socket.emit('join_session', { sessionId, displayName, role });
+      }
     });
 
     socket.on('session_paused', () => setSessionPaused(true));
     socket.on('session_resumed', () => setSessionPaused(false));
 
-    // Only emit join_session if shouldJoin is true, typically for viewers after they enter their name
-    if (shouldJoin) {
-      socket.emit('join_session', { sessionId, displayName, role });
-    }
+    // Add a useEffect that watches shouldJoin - if it becomes true after connect, emit join_session
+    // This handles cases where shouldJoin becomes true after the initial socket connection
+    useEffect(() => {
+      if (shouldJoin && socketRef.current && socketRef.current.connected) {
+        socketRef.current.emit('join_session', { sessionId, displayName, role });
+      }
+    }, [shouldJoin, sessionId, displayName, role]);
 
     socket.on('chat_message', (msg) => {
       setMessages(prev => [...prev, msg])
@@ -62,10 +68,18 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     socket.on('kicked', () => {
     // WebRTC: Builder side - initiate offer to new viewer
     socket.on('viewer_joined_webrtc', async ({ viewerSocketId }) => {
-      if (!localStreamRef.current) return;
+      console.log('viewer joined, local stream:', localStreamRef.current)
+      if (!localStreamRef.current) {
+        console.error('No local stream available for WebRTC')
+        return
+      };
       
       const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
       });
       peerConnections.current[viewerSocketId] = pc;
       
@@ -90,7 +104,11 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     // WebRTC: Viewer side - create answer to builder's offer
     socket.on('webrtc_offer', async ({ from, offer }) => {
       const pc = new RTCPeerConnection({
-        iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' }
+        ]
       });
       peerConnections.current[from] = pc;
       
