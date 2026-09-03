@@ -13,8 +13,8 @@ export default function ViewerRoom() {
   const [sessionActive, setSessionActive] = useState(null)
   const [hasJoined, setHasJoined] = useState(false)
   const [displayName, setDisplayName] = useState('Guest')
-
   const [needsTap, setNeedsTap] = useState(false)
+  const [streamReceived, setStreamReceived] = useState(false)
 
   const { messages, viewers, connected, sendMessage, remoteStream, sessionPaused } = useSocket(
     sessionId,
@@ -32,14 +32,15 @@ export default function ViewerRoom() {
 
   useEffect(() => {
     if (remoteStream && videoRef.current) {
+      console.log('Remote stream received, tracks:', remoteStream.getTracks())
       videoRef.current.srcObject = remoteStream
-      videoRef.current.load()
-      videoRef.current.play().then(() => {
-        setNeedsTap(false)
-      }).catch(error => {
-        console.error("Autoplay prevented:", error)
-        setNeedsTap(true)
-      })
+      setStreamReceived(true)
+      const playPromise = videoRef.current.play()
+      if (playPromise !== undefined) {
+        playPromise
+          .then(() => { setNeedsTap(false) })
+          .catch(() => { setNeedsTap(true) })
+      }
     }
   }, [remoteStream])
 
@@ -75,13 +76,18 @@ export default function ViewerRoom() {
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>VibeLink</h1>
         <p style={{ color: '#ef4444', marginBottom: '1rem' }}>🔴 Live</p>
         <div style={{ width: '100%', maxWidth: '800px', aspectRatio: '16/9', background: 'black', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
+          <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }}></video>
+          {!streamReceived && !sessionPaused && (
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>
+              Waiting for stream...
+            </div>
+          )}
           {sessionPaused && (
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem' }}>
               ⏸ Stream paused by host
             </div>
           )}
-          <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }}></video>
-          {needsTap && (
+          {needsTap && streamReceived && !sessionPaused && (
             <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', cursor: 'pointer' }} onClick={() => videoRef.current.play().then(() => setNeedsTap(false)).catch(() => {})}>
               ▶ Tap to Play
             </div>
@@ -93,7 +99,7 @@ export default function ViewerRoom() {
         messages={messages}
         viewers={viewers}
         onSendMessage={sendMessage}
-        currentDisplayName={displayName}
+        currentDisplayName={'Guest'}
         currentUserRole={'viewer'}
       />
     </div>

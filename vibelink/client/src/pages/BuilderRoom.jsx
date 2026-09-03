@@ -33,7 +33,10 @@ export default function BuilderRoom() {
   const handleStreamReady = (mediaStream) => {
     setStream(mediaStream)
     setIsLive(true)
-    if (setLocalStream) setLocalStream(mediaStream)
+    if (setLocalStream) {
+      setLocalStream(mediaStream)
+      console.log('Local stream set, tracks:', mediaStream.getTracks())
+    }
   }
 
   const handleStreamEnd = () => {

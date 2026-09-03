@@ -120,8 +120,16 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
         }
       }
       pc.ontrack = (event) => {
+        console.log('ontrack fired, streams:', event.streams)
+        console.log('track kind:', event.track.kind)
         if (event.streams && event.streams[0]) {
+          console.log('Setting remote stream')
           setRemoteStream(event.streams[0])
+        } else {
+          console.log('No streams in ontrack event, creating new MediaStream')
+          const newStream = new MediaStream()
+          newStream.addTrack(event.track)
+          setRemoteStream(newStream)
         }
       }
       try {
