@@ -18,360 +18,273 @@ export default function BuilderRoom() {
 
   const { messages, viewers, connected, sendMessage, setLocalStream, sessionPaused, socket } = useSocket(sessionId, 'Host', 'builder', true);
 
-  // Handlers
-  const handleStartSharing = () => {
-    setShowModal(true);
-  };
+  useEffect(() => {
+    if (socket) {
+      socket.on('session-ended', () => {
+        alert('Session has ended by the host.');
+        navigate('/');
+      });
 
-  const handleConfirm = () => {
-    setShowModal(false);
-    setShouldStart(true);
-  };
+      socket.on('host-disconnected', () => {
+        alert('Host disconnected unexpectedly. Ending session.');
+        navigate('/');
+      });
 
-  const handleStreamReady = (mediaStream) => {
-    setStream(mediaStream);
-    setIsLive(true);
-    setLocalStream(mediaStream); // Pass the stream to useSocket
-  };
+      return () => {
+        socket.off('session-ended');
+        socket.off('host-disconnected');
+      };
+    }
+  }, [socket, navigate]);
 
-  const handleStreamEnd = () => {
-    setIsLive(false);
-    setShouldStart(false);
-    setStream(null);
-    // NO setShowModal here
-  };
-
-  const handleCopyLink = () => {
-    const shareableLink = window.location.origin + '/s/' + sessionId;
-    navigator.clipboard.writeText(shareableLink).then(() => {
-      setCopied(true);
-      setTimeout(() => {
-        setCopied(false);
-      }, 2000);
-    }).catch(err => {
-      console.error('Failed to copy: ', err);
-    });
-  };
-
-  const handlePause = () => {
-    if (stream) {
-      stream.getTracks().forEach(t => t.enabled = false);
+  useEffect(() => {
+    if (sessionPaused) {
       setIsPaused(true);
-      socket && socket.emit('session_paused', { sessionId });
-    }
-  };
-
-  const handleResume = () => {
-    if (stream) {
-      stream.getTracks().forEach(t => t.enabled = true);
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
+      setIsLive(false);
+    } else {
       setIsPaused(false);
-      socket && socket.emit('session_resumed', { sessionId });
+    }
+  }, [sessionPaused, stream]);
+
+  const startStreaming = async () => {
+    try {
+      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: true,
+      });
+      setStream(mediaStream);
+      setLocalStream(mediaStream);
+      setIsLive(true);
+      setShouldStart(true);
+
+      mediaStream.getVideoTracks()[0].onended = () => {
+        stopStreaming();
+      };
+    } catch (error) {
+      console.error('Error starting stream:', error);
+      setIsLive(false);
     }
   };
 
-  const handleEndSession = async () => {
+  const stopStreaming = () => {
     if (stream) {
       stream.getTracks().forEach(track => track.stop());
+      setStream(null);
     }
-    try {
-      const apiUrl = import.meta.env.VITE_API_URL || '';
-      await fetch(apiUrl + '/api/session/' + sessionId, { method: 'DELETE' });
-    } catch (err) {
-      console.error('Error ending session on server:', err);
-  // Styles
-  const styles = {
-    container: {
-      height: '100vh',
-      backgroundColor: '#0d0d0d',
-      color: 'white',
-      fontFamily: 'sans-serif',
-      display: 'flex',
-      flexDirection: 'column',
-    },
-    topBar: {
-      position: 'fixed',
-      top: 0,
-      left: 0,
-      right: 0,
-      backgroundColor: '#111',
-      padding: '1rem 1.5rem',
-      display: 'flex',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      zIndex: 999,
-      boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-    },
-    topBarLeft: {
-      display: 'flex',
-      alignItems: 'baseline',
-      gap: '10px',
-    },
-    vibelinkText: {
-      fontWeight: 'bold',
-      fontSize: '1.5rem',
-      color: '#06b6d4',
-    },
-    sessionIdText: {
-      fontSize: '0.9rem',
-      color: '#888',
-    },
-    topBarRight: {
-      display: 'flex',
-      alignItems: 'center',
-      gap: '10px',
-    },
-    button: {
-      padding: '0.5rem 1rem',
-      borderRadius: '6px',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '0.9rem',
-      fontWeight: 'bold',
-      transition: 'background-color 0.2s',
-    },
-    pauseButton: {
-      backgroundColor: '#374151', // blue-gray-700
-      color: 'white',
-      '&:hover': {
-        backgroundColor: '#4b5563', // blue-gray-600
-      },
-    },
-    resumeButton: {
-      backgroundColor: '#059669', // emerald-600
-      color: 'white',
-      '&:hover': {
-        backgroundColor: '#047857', // emerald-700
-      },
-    },
-    endSessionButton: {
-      backgroundColor: '#dc2626', // red-600
-      color: 'white',
-      '&:hover': {
-        backgroundColor: '#b91c1c', // red-700
-      },
-    },
-    mainContent: {
-      flexGrow: 1,
-      paddingTop: '80px', // Clearance for fixed top bar
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      padding: '20px',
-    },
-    shareLinkCard: {
-      backgroundColor: '#1a1a1a',
-      border: '1px solid #333',
-      borderRadius: '12px',
-      padding: '1.5rem',
-      maxWidth: '600px',
-      width: '100%',
-      margin: '0 auto',
-      textAlign: 'center',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-    },
-    shareLinkLabel: {
-      fontSize: '0.9rem',
-      color: '#888',
-      marginBottom: '0.75rem',
-    },
-    shareLinkUrl: {
-      backgroundColor: '#0d0d0d',
-      color: '#06b6d4',
-      padding: '0.75rem',
-      borderRadius: '8px',
-      fontFamily: 'monospace',
-      wordBreak: 'break-all',
-      marginBottom: '1rem',
-    },
-    copyButton: {
-      backgroundColor: '#06b6d4',
-      color: 'white',
-      padding: '0.75rem 1.5rem',
-      borderRadius: '6px',
-      border: 'none',
-      cursor: 'pointer',
-      fontSize: '1rem',
-      fontWeight: 'bold',
-      transition: 'background-color 0.2s',
-      '&:hover': {
-        backgroundColor: '#0891b2',
-      },
-    },
-    copyButtonCopied: {
-      backgroundColor: '#22c55e', // green-500
-      '&:hover': {
-        backgroundColor: '#16a34a', // green-600
-      },
-    },
-    preLiveContent: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      marginTop: '2rem',
-    },
-    startButton: {
-      backgroundColor: '#06b6d4',
-      color: 'white',
-      padding: '1rem 3rem',
-      fontSize: '1.1rem',
-      borderRadius: '8px',
-      border: 'none',
-      cursor: 'pointer',
-      fontWeight: 'bold',
-      transition: 'background-color 0.2s',
-      '&:hover': {
-        backgroundColor: '#0891b2',
-      },
-    },
-    viewerInstructionText: {
-      fontSize: '0.9rem',
-      color: '#888',
-      marginTop: '1rem',
-    },
-    liveContent: {
-      display: 'flex',
-      gap: '1rem',
-      marginTop: '1rem',
-      width: '100%',
-      maxWidth: '1200px', // Adjust as needed
-      alignItems: 'flex-start', // Align items to the top
-    },
+    setLocalStream(null);
+    setIsLive(false);
+    setShouldStart(false);
+    socket.emit('end-session', sessionId);
+    navigate('/');
+  };
+
+  const pauseStreaming = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setLocalStream(null);
+    setIsPaused(true);
+    setIsLive(false);
+    socket.emit('pause-session', sessionId);
+  };
+
+  const resumeStreaming = async () => {
+    await startStreaming();
+    setIsPaused(false);
+    socket.emit('resume-session', sessionId);
+  };
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/viewer/${sessionId}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
   return (
     <div style={styles.container}>
-      {showModal && <InstructionModal onConfirm={handleConfirm} />}
+      <InstructionModal
+        showModal={showModal}
+        setShowModal={setShowModal}
+        shouldStart={shouldStart}
+        startStreaming={startStreaming}
+      />
 
-      <div style={styles.topBar}>
-        <div style={styles.topBarLeft}>
-          <span style={styles.vibelinkText}>VibeLink</span>
-          <span style={styles.sessionIdText}>Session ID: {sessionId}</span>
-        </div>
-        <div style={styles.topBarRight}>
-          {isLive && (
-            isPaused ? (
-              <button onClick={handleResume} style={{ ...styles.button, ...styles.resumeButton }}>
-                ▶ Resume
-              </button>
-            ) : (
-              <button onClick={handlePause} style={{ ...styles.button, ...styles.pauseButton }}>
-                ⏸ Pause
-              </button>
-            )
-          )}
-          <button onClick={handleEndSession} style={{ ...styles.button, ...styles.endSessionButton }}>
-            End Session
-          </button>
-        </div>
+      <div style={styles.header}>
+        <h1 style={styles.title}>Builder Room: {sessionId}</h1>
+        <button onClick={() => setShowModal(true)} style={styles.infoButton}>
+          How to use?
+        </button>
       </div>
 
-      <div style={styles.mainContent}>
-        <div style={styles.shareLinkCard}>
-          <p style={styles.shareLinkLabel}>🔗 Share this link — viewers join here:</p>
-          <div style={styles.shareLinkUrl}>
-            {window.location.origin}/s/{sessionId}
-          </div>
-          <button
-            onClick={handleCopyLink}
-            style={{ ...styles.copyButton, ...(copied ? styles.copyButtonCopied : {}) }}
-          >
-            {copied ? '✓ Copied!' : 'Copy Link'}
-          </button>
+      <div style={styles.content}>
+        <div style={styles.screenShareContainer}>
+          {isLive && stream ? (
+            <ScreenShare stream={stream} />
+          ) : isPaused ? (
+            <div style={styles.pausedContainer}>
+              <p>Session Paused</p>
+              <button onClick={resumeStreaming} style={styles.actionButton}>
+                Resume Streaming
+              </button>
+            </div>
+          ) : (
+            <div style={styles.overlay}>
+              <p>Click 'Start Streaming' to begin your session</p>
+              <button onClick={startStreaming} style={styles.actionButton}>
+                Start Streaming
+              </button>
+            </div>
+          )}
         </div>
 
-        {!isLive && (
-          <div style={styles.preLiveContent}>
-            <button
-              onClick={handleStartSharing}
-              style={styles.startButton}
-            >
-              ▶ Start Screen Share
-            </button>
-            <p style={styles.viewerInstructionText}>Viewers can already see your link above. Start sharing when you are ready.</p>
+        <div style={styles.sidebar}>
+          <div style={styles.viewersSection}>
+            <h2>Viewers ({viewers.length})</h2>
+            <div style={styles.viewerList}>
+              {viewers.map((viewer, index) => (
+                <p key={index}>{viewer}</p>
+              ))}
+            </div>
           </div>
-        )}
 
-        {isLive && (
-          <div style={styles.liveContent}>
-            <div style={styles.streamColumn}>
-              <div style={{
-                width: '100%',
-                height: 'auto',
-                aspectRatio: '16/9',
-                backgroundColor: 'black',
-                marginBottom: '1rem',
-                display: shouldStart ? 'block' : 'none' // Use CSS display
-              }}>
-                <ScreenShare
-                  shouldStart={shouldStart}
-                  onStreamReady={handleStreamReady}
-                  onStreamEnd={handleStreamEnd}
-                />
-              </div>
-              {isPaused ? (
-                <div style={styles.pausedBadge}>⏸ Session Paused</div>
-              ) : (
-                <div style={styles.liveBadge}>🔴 You're live</div>
-              )}
-              <p style={styles.viewerCount}>{viewers.length} people watching</p>
-            </div>
-            <div style={styles.chatColumn}>
-              <SessionChat messages={messages} onSendMessage={sendMessage} currentUserName="Host" isConnected={connected} />
+          <div style={styles.chatSection}>
+            <SessionChat messages={messages} sendMessage={sendMessage} />
+          </div>
+
+          <div style={styles.controlsSection}>
+            <p style={styles.statusText}>
+              Status: {connected ? 'Connected' : 'Disconnected'}
+            </p>
+            <p style={styles.statusText}>Stream: {isLive ? 'Live' : 'Offline'}</p>
+            <div style={styles.controlButtons}>
+              <button onClick={copyToClipboard} style={styles.actionButton}>
+                {copied ? 'Copied!' : 'Copy Viewer Link'}
+              </button>
+              {isLive ? (
+                <button onClick={pauseStreaming} style={styles.actionButton}>
+                  Pause Streaming
+                </button>
+              ) : null}
+              <button onClick={stopStreaming} style={styles.actionButton}>
+                End Session
+              </button>
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 }
 
-    streamColumn: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      backgroundColor: '#1a1a1a', // Background for the stream area
-      borderRadius: '12px',
-      padding: '1rem',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-    },
-    chatColumn: {
-      width: '320px',
-      minWidth: '320px',
-      backgroundColor: '#1a1a1a', // Background for chat
-      borderRadius: '12px',
-      padding: '1rem',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-      display: 'flex',
-      flexDirection: 'column',
-      height: 'calc(100vh - 80px - 2rem)', // Adjusted height for chat column
-      // To ensure chat doesn't overflow, considering topBar and padding
-      maxHeight: 'calc(100vh - 80px - 40px)', // topBarHeight + top/bottom padding
-    },
-    pausedBadge: {
-      backgroundColor: '#1f2937', // blue-gray-800
-      color: '#9ca3af', // blue-gray-400
-      padding: '0.5rem 1rem',
-      borderRadius: '20px',
-      fontSize: '0.9rem',
-      fontWeight: 'bold',
-      marginTop: '1rem',
-    },
-    liveBadge: {
-      backgroundColor: '#052e16', // green-950
-      color: '#4ade80', // green-400
-      padding: '0.5rem 1rem',
-      borderRadius: '20px',
-      fontSize: '0.9rem',
-      fontWeight: 'bold',
-      marginTop: '1rem',
-    },
-    viewerCount: {
-      color: '#888',
-      marginTop: '0.5rem',
-      fontSize: '0.9rem',
-    },
-  };
-
-    } finally {
-      navigate('/');
-    }
-  };
+const styles = {
+  container: {
+    display: 'flex',
+    flexDirection: 'column',
+    height: '100vh',
+    backgroundColor: '#282c34',
+    color: 'white',
+    fontFamily: 'Arial, sans-serif',
+  },
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: '10px 20px',
+    backgroundColor: '#20232a',
+    borderBottom: '1px solid #3a3f47',
+  },
+  title: {
+    margin: 0,
+    fontSize: '24px',
+  },
+  infoButton: {
+    backgroundColor: '#61dafb',
+    color: '#282c34',
+    border: 'none',
+    padding: '8px 15px',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontSize: '16px',
+  },
+  content: {
+    display: 'flex',
+    flex: 1,
+  },
+  screenShareContainer: {
+    flex: 3,
+    display: 'flex',
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#000',
+    position: 'relative',
+  },
+  overlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  pausedContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  actionButton: {
+    backgroundColor: '#61dafb',
+    color: '#282c34',
+    border: 'none',
+    padding: '10px 20px',
+    borderRadius: '5px',
+    cursor: 'pointer',
+    fontSize: '18px',
+    marginTop: '10px',
+    margin: '5px',
+  },
+  sidebar: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    backgroundColor: '#20232a',
+    borderLeft: '1px solid #3a3f47',
+  },
+  viewersSection: {
+    padding: '10px',
+    borderBottom: '1px solid #3a3f47',
+    maxHeight: '200px',
+    overflowY: 'auto',
+  },
+  viewerList: {
+    marginTop: '10px',
+  },
+  chatSection: {
+    flex: 1,
+    padding: '10px',
+    borderBottom: '1px solid #3a3f47',
+    display: 'flex',
+    flexDirection: 'column',
+  },
+  controlsSection: {
+    padding: '10px',
+  },
+  statusText: {
+    margin: '5px 0',
+  },
+  controlButtons: {
+    display: 'flex',
+    flexDirection: 'column',
+    marginTop: '10px',
+  },
+};
