@@ -60,7 +60,7 @@ export default function SessionChat({ messages, onSendMessage, currentUserName, 
           type="text"
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
-          placeholder={isConnected ? "Type a message..." : "Connecting to chat..."}
+          placeholder="Type a message..."
           style={styles.chatInput}
         />
         <button type="submit" style={styles.sendButton} disabled={!inputValue.trim()}>

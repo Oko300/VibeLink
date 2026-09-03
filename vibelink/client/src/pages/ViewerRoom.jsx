@@ -14,6 +14,8 @@ export default function ViewerRoom() {
   const [hasJoined, setHasJoined] = useState(false)
   const [displayName, setDisplayName] = useState('Guest')
 
+  const [needsTap, setNeedsTap] = useState(false)
+
   const { messages, viewers, connected, sendMessage, remoteStream, sessionPaused } = useSocket(
     sessionId,
     displayName,
@@ -31,7 +33,13 @@ export default function ViewerRoom() {
   useEffect(() => {
     if (remoteStream && videoRef.current) {
       videoRef.current.srcObject = remoteStream
-      videoRef.current.play().catch(() => {})
+      videoRef.current.load()
+      videoRef.current.play().then(() => {
+        setNeedsTap(false)
+      }).catch(error => {
+        console.error("Autoplay prevented:", error)
+        setNeedsTap(true)
+      })
     }
   }, [remoteStream])
 
@@ -72,7 +80,12 @@ export default function ViewerRoom() {
               ⏸ Stream paused by host
             </div>
           )}
-          <video ref={videoRef} autoPlay controls style={{ width: '100%', height: '100%', objectFit: 'contain' }}></video>
+          <video ref={videoRef} autoPlay playsInline style={{ width: '100%', height: '100%', objectFit: 'contain' }}></video>
+          {needsTap && (
+            <div style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', cursor: 'pointer' }} onClick={() => videoRef.current.play().then(() => setNeedsTap(false)).catch(() => {})}>
+              ▶ Tap to Play
+            </div>
+          )}
         </div>
       </div>
       <SessionChat
