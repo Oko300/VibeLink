@@ -92,7 +92,7 @@ export default function ViewerRoom() {
         sessionId={sessionId}
         messages={messages}
         viewers={viewers}
-        sendMessage={sendMessage}
+        onSendMessage={sendMessage}
         currentDisplayName={displayName}
         currentUserRole={'viewer'}
       />
