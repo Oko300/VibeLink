@@ -12,6 +12,34 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
   const [connected, setConnected] = useState(false)
   const [remoteStream, setRemoteStream] = useState(null)
   const [sessionPaused, setSessionPaused] = useState(false)
+  const pendingViewers = useRef([])
+
+  // Helper function for WebRTC offer initiation
+  const initiateWebRTC = async (viewerSocketId, socket) => {
+    if (!localStreamRef.current) return
+    const pc = new RTCPeerConnection({
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' }
+      ]
+    })
+    peerConnections.current[viewerSocketId] = pc
+    localStreamRef.current.getTracks().forEach(track => {
+      pc.addTrack(track, localStreamRef.current)
+    })
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('webrtc_ice_candidate', { targetSocketId: viewerSocketId, candidate: event.candidate })
+      }
+    }
+    try {
+      const offer = await pc.createOffer()
+      await pc.setLocalDescription(offer)
+      socket.emit('webrtc_offer', { targetSocketId: viewerSocketId, offer })
+    } catch (e) {
+      console.error('WebRTC offer error:', e)
+    }
+  }
 
   useEffect(() => {
     if (!sessionId) return
@@ -31,6 +59,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     })
 
     socket.on('viewer_list', (list) => {
+      console.log('viewer list updated:', list)
       setViewers(list || [])
     })
 
@@ -63,29 +92,11 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     socket.on('session_resumed', () => setSessionPaused(false))
 
     socket.on('viewer_joined_webrtc', async ({ viewerSocketId }) => {
-      if (!localStreamRef.current) return
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      })
-      peerConnections.current[viewerSocketId] = pc
-      localStreamRef.current.getTracks().forEach(track => {
-        pc.addTrack(track, localStreamRef.current)
-      })
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('webrtc_ice_candidate', { targetSocketId: viewerSocketId, candidate: event.candidate })
-        }
+      if (!localStreamRef.current) {
+        pendingViewers.current.push(viewerSocketId)
+        return
       }
-      try {
-        const offer = await pc.createOffer()
-        await pc.setLocalDescription(offer)
-        socket.emit('webrtc_offer', { targetSocketId: viewerSocketId, offer })
-      } catch (e) {
-        console.error('WebRTC offer error:', e)
-      }
+      await initiateWebRTC(viewerSocketId, socket)
     })
 
     socket.on('webrtc_offer', async ({ from, offer }) => {
@@ -165,6 +176,11 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
 
   const setLocalStream = (stream) => {
     localStreamRef.current = stream
+    // Now handle any viewers who joined before stream was ready
+    pendingViewers.current.forEach(async (viewerSocketId) => {
+      await initiateWebRTC(viewerSocketId, socketRef.current)
+    })
+    pendingViewers.current = []
   }
 
   return {

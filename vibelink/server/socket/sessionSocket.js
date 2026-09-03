@@ -17,6 +17,7 @@ export function initSessionSocket(io) {
           socketId: socket.id,
           displayName: socket.data.displayName
         });
+        io.to(sessionId).emit('viewer_list', sessionStore.getViewers(sessionId))
 
         // If viewer joining, notify the builder to initiate WebRTC
         const room = io.sockets.adapter.rooms.get(sessionId);

@@ -146,7 +146,7 @@ export default function BuilderRoom() {
               </h2>
               <p style={{ color: '#aaa' }}>{viewers.length} people watching</p>
             </div>
-            <SessionChat messages={messages} sendMessage={sendMessage} />
+            <SessionChat messages={messages} sendMessage={sendMessage} isConnected={connected} />
           </div>
         )}
       </main>

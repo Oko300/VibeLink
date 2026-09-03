@@ -14,7 +14,8 @@ export default function SessionChat({ messages, onSendMessage, currentUserName, 
 
   const handleSendMessage = (e) => {
     e.preventDefault()
-    if (inputValue.trim() && isConnected) {
+    if (inputValue.trim()) {
+      console.log('sending message:', inputValue)
       onSendMessage(inputValue)
       setInputValue('')
     }
@@ -60,10 +61,9 @@ export default function SessionChat({ messages, onSendMessage, currentUserName, 
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           placeholder={isConnected ? "Type a message..." : "Connecting to chat..."}
-          disabled={!isConnected}
           style={styles.chatInput}
         />
-        <button type="submit" style={styles.sendButton} disabled={!isConnected}>
+        <button type="submit" style={styles.sendButton} disabled={!inputValue.trim()}>
           Send
         </button>
       </form>
