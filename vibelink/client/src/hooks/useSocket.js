@@ -44,7 +44,14 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
   useEffect(() => {
     if (!sessionId) return
 
-    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] })
+    const socket = io(SOCKET_URL, {
+      transports: ['polling', 'websocket'],
+      upgrade: true,
+      reconnection: true,
+      reconnectionAttempts: 5,
+      reconnectionDelay: 1000,
+      timeout: 20000
+    })
     socketRef.current = socket
 
     socket.on('connect', () => {

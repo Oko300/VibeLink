@@ -1,49 +1,44 @@
-import express from 'express';
-import http from 'http';
-import { Server as SocketIOServer } from 'socket.io';
-import cors from 'cors';
-import dotenv from 'dotenv';
-dotenv.config();
+import express from 'express'
+import { createServer } from 'http'
+import { Server } from 'socket.io'
+import dotenv from 'dotenv'
+dotenv.config()
 
-import session from 'express-session';
-import passport from 'passport';
+import sessionRouter from './routes/session.js'
+import authRouter from './routes/auth.js'
+import { initSessionSocket } from './socket/sessionSocket.js'
 
-import sessionRoutes from './routes/session.js';
-import authRoutes from './routes/auth.js';
-import { initSessionSocket } from './socket/sessionSocket.js';
+const app = express()
+const httpServer = createServer(app)
 
-const app = express();
-const server = http.createServer(app);
-const io = new SocketIOServer(server, {
+const io = new Server(httpServer, {
   cors: {
-    origin: process.env.CLIENT_URL,
-    methods: ['GET', 'POST']
-  }
-});
+    origin: '*',
+    methods: ['GET', 'POST'],
+    credentials: false
+  },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true
+})
 
-const PORT = process.env.PORT || 3001;
+app.use(express.json())
 
-app.use(cors({
-  origin: process.env.CLIENT_URL,
-}));
-app.use(session({ secret: process.env.JWT_SECRET, resave: false, saveUninitialized: false }));
-app.use(passport.initialize());
-app.use(passport.session());
-app.use(express.json());
+app.use((req, res, next) => {
+  res.header('Access-Control-Allow-Origin', '*')
+  res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS')
+  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+  if (req.method === 'OPTIONS') return res.sendStatus(200)
+  next()
+})
 
-app.use('/api/session', sessionRoutes);
-app.use('/auth', authRoutes);
+app.use('/api/session', sessionRouter)
+app.use('/auth', authRouter)
 
-initSessionSocket(io);
+app.get('/', (req, res) => res.json({ status: 'VibeLink server running' }))
 
-// Keep Render free tier awake
-const SELF_URL = process.env.RENDER_EXTERNAL_URL || null
-if (SELF_URL) {
-  setInterval(() => {
-    fetch(SELF_URL + '/api/session/ping').catch(() => {})
-  }, 14 * 60 * 1000) // ping every 14 minutes
-}
+initSessionSocket(io)
 
-server.listen(PORT, () => {
-  console.log(`VibeLink server running on port ${PORT}`);
-});
+const PORT = process.env.PORT || 3001
+httpServer.listen(PORT, () => {
+  console.log('VibeLink server running on port ' + PORT)
+})
