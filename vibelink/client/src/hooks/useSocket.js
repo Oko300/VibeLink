@@ -29,14 +29,6 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     socket.on('session_paused', () => setSessionPaused(true));
     socket.on('session_resumed', () => setSessionPaused(false));
 
-    // Add a useEffect that watches shouldJoin - if it becomes true after connect, emit join_session
-    // This handles cases where shouldJoin becomes true after the initial socket connection
-    useEffect(() => {
-      if (shouldJoin && socketRef.current && socketRef.current.connected) {
-        socketRef.current.emit('join_session', { sessionId, displayName, role });
-      }
-    }, [shouldJoin, sessionId, displayName, role]);
-
     socket.on('chat_message', (msg) => {
       setMessages(prev => [...prev, msg])
     })
@@ -140,6 +132,13 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     // WebRTC: Both sides - exchange ICE candidates
     socket.on('webrtc_ice_candidate', async ({ from, candidate }) => {
       const pc = peerConnections.current[from];
+
+  // Separate useEffect to handle shouldJoin becoming true after initial connect
+  useEffect(() => {
+    if (shouldJoin && socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('join_session', { sessionId, displayName, role });
+    }
+  }, [shouldJoin, sessionId, displayName, role]);
       if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
     });
 
@@ -150,7 +149,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     return () => {
       socket.disconnect()
     }
-  }, [sessionId])
+  }, [sessionId, displayName, role, shouldJoin])
 
   const sendMessage = (message) => {
     if (socketRef.current && message.trim()) {
