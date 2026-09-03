@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { io } from 'socket.io-client'
 
+const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 export function useSocket(sessionId, displayName, role, shouldJoin) {
   const socketRef = useRef(null)
-  const peerConnections = useRef({})
   const localStreamRef = useRef(null)
+  const peerConnections = useRef({})
   const [messages, setMessages] = useState([])
   const [viewers, setViewers] = useState([])
   const [connected, setConnected] = useState(false)
@@ -14,27 +16,22 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
   useEffect(() => {
     if (!sessionId) return
 
-    const socket = io(import.meta.env.VITE_API_URL || 'http://localhost:3001', {
-      transports: ['websocket']
-    })
+    const socket = io(SOCKET_URL, { transports: ['websocket', 'polling'] })
     socketRef.current = socket
 
     socket.on('connect', () => {
-      setConnected(true);
+      setConnected(true)
       if (shouldJoin) {
-        socket.emit('join_session', { sessionId, displayName, role });
+        socket.emit('join_session', { sessionId, displayName: displayName || 'Guest', role: role || 'viewer' })
       }
-    });
-
-    socket.on('session_paused', () => setSessionPaused(true));
-    socket.on('session_resumed', () => setSessionPaused(false));
+    })
 
     socket.on('chat_message', (msg) => {
       setMessages(prev => [...prev, msg])
     })
 
-    socket.on('viewer_list', (viewerList) => {
-      setViewers(viewerList)
+    socket.on('viewer_list', (list) => {
+      setViewers(list || [])
     })
 
     socket.on('user_joined', (user) => {
@@ -42,7 +39,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
         id: Date.now().toString(),
         displayName: 'System',
         role: 'system',
-        message: user.displayName + ' joined the session',
+        message: (user.displayName || 'Someone') + ' joined the session',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }])
     })
@@ -58,101 +55,104 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     })
 
     socket.on('kicked', () => {
-    // WebRTC: Builder side - initiate offer to new viewer
-    socket.on('viewer_joined_webrtc', async ({ viewerSocketId }) => {
-      console.log('viewer joined, local stream:', localStreamRef.current)
-      if (!localStreamRef.current) {
-        console.error('No local stream available for WebRTC')
-        return
-      };
-      
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
-        ]
-      });
-      peerConnections.current[viewerSocketId] = pc;
-      
-      localStreamRef.current.getTracks().forEach(track => {
-        pc.addTrack(track, localStreamRef.current);
-      });
-      
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('webrtc_ice_candidate', {
-            targetSocketId: viewerSocketId,
-            candidate: event.candidate
-          });
-        }
-      };
-      
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-      socket.emit('webrtc_offer', { targetSocketId: viewerSocketId, offer });
-    });
-
-    // WebRTC: Viewer side - create answer to builder's offer
-    socket.on('webrtc_offer', async ({ from, offer }) => {
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' }
-        ]
-      });
-      peerConnections.current[from] = pc;
-      
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit('webrtc_ice_candidate', {
-            targetSocketId: from,
-            candidate: event.candidate
-          });
-        }
-      };
-      
-      pc.ontrack = (event) => {
-        setRemoteStream(event.streams[0]);
-      };
-      
-      await pc.setRemoteDescription(new RTCSessionDescription(offer));
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      socket.emit('webrtc_answer', { targetSocketId: from, answer });
-    });
-
-    // WebRTC: Builder side - receive answer from viewer
-    socket.on('webrtc_answer', async ({ from, answer }) => {
-      const pc = peerConnections.current[from];
-      if (pc) await pc.setRemoteDescription(new RTCSessionDescription(answer));
-    });
-
-    // WebRTC: Both sides - exchange ICE candidates
-    socket.on('webrtc_ice_candidate', async ({ from, candidate }) => {
-      const pc = peerConnections.current[from];
-
-  // Separate useEffect to handle shouldJoin becoming true after initial connect
-  useEffect(() => {
-    if (shouldJoin && socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('join_session', { sessionId, displayName, role });
-    }
-  }, [shouldJoin, sessionId, displayName, role]);
-      if (pc) await pc.addIceCandidate(new RTCIceCandidate(candidate));
-    });
-
       alert('You have been removed from this session.')
       window.location.href = '/'
     })
 
+    socket.on('session_paused', () => setSessionPaused(true))
+    socket.on('session_resumed', () => setSessionPaused(false))
+
+    socket.on('viewer_joined_webrtc', async ({ viewerSocketId }) => {
+      if (!localStreamRef.current) return
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      })
+      peerConnections.current[viewerSocketId] = pc
+      localStreamRef.current.getTracks().forEach(track => {
+        pc.addTrack(track, localStreamRef.current)
+      })
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('webrtc_ice_candidate', { targetSocketId: viewerSocketId, candidate: event.candidate })
+        }
+      }
+      try {
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        socket.emit('webrtc_offer', { targetSocketId: viewerSocketId, offer })
+      } catch (e) {
+        console.error('WebRTC offer error:', e)
+      }
+    })
+
+    socket.on('webrtc_offer', async ({ from, offer }) => {
+      const pc = new RTCPeerConnection({
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      })
+      peerConnections.current[from] = pc
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit('webrtc_ice_candidate', { targetSocketId: from, candidate: event.candidate })
+        }
+      }
+      pc.ontrack = (event) => {
+        if (event.streams && event.streams[0]) {
+          setRemoteStream(event.streams[0])
+        }
+      }
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(offer))
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+        socket.emit('webrtc_answer', { targetSocketId: from, answer })
+      } catch (e) {
+        console.error('WebRTC answer error:', e)
+      }
+    })
+
+    socket.on('webrtc_answer', async ({ from, answer }) => {
+      const pc = peerConnections.current[from]
+      if (pc) {
+        try {
+          await pc.setRemoteDescription(new RTCSessionDescription(answer))
+        } catch (e) {
+          console.error('WebRTC set answer error:', e)
+        }
+      }
+    })
+
+    socket.on('webrtc_ice_candidate', async ({ from, candidate }) => {
+      const pc = peerConnections.current[from]
+      if (pc) {
+        try {
+          await pc.addIceCandidate(new RTCIceCandidate(candidate))
+        } catch (e) {
+          console.error('ICE candidate error:', e)
+        }
+      }
+    })
+
     return () => {
+      Object.values(peerConnections.current).forEach(pc => pc.close())
+      peerConnections.current = {}
       socket.disconnect()
     }
-  }, [sessionId, displayName, role, shouldJoin])
+  }, [sessionId])
+
+  useEffect(() => {
+    if (shouldJoin && socketRef.current && socketRef.current.connected) {
+      socketRef.current.emit('join_session', { sessionId, displayName: displayName || 'Guest', role: role || 'viewer' })
+    }
+  }, [shouldJoin])
 
   const sendMessage = (message) => {
-    if (socketRef.current && message.trim()) {
+    if (socketRef.current && message && message.trim()) {
       socketRef.current.emit('chat_message', { sessionId, message })
     }
   }
@@ -163,7 +163,19 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     }
   }
 
-  const setLocalStream = (stream) => { localStreamRef.current = stream }
+  const setLocalStream = (stream) => {
+    localStreamRef.current = stream
+  }
 
-  return { messages, viewers, connected, sendMessage, kickViewer, setLocalStream, remoteStream, sessionPaused, socket: socketRef.current }
+  return {
+    messages,
+    viewers,
+    connected,
+    sendMessage,
+    kickViewer,
+    setLocalStream,
+    remoteStream,
+    sessionPaused,
+    socket: socketRef.current
+  }
 }
