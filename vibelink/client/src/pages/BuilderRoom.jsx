@@ -1,290 +1,155 @@
-import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import InstructionModal from '../components/InstructionModal';
-import ScreenShare from '../components/ScreenShare';
-import SessionChat from '../components/SessionChat';
-import { useSocket } from '../hooks/useSocket';
+import React, { useState } from 'react'
+import { useParams, useNavigate } from 'react-router-dom'
+import InstructionModal from '../components/InstructionModal'
+import ScreenShare from '../components/ScreenShare'
+import SessionChat from '../components/SessionChat'
+import { useSocket } from '../hooks/useSocket'
 
 export default function BuilderRoom() {
-  const { sessionId } = useParams();
-  const navigate = useNavigate();
+  const { sessionId } = useParams()
+  const navigate = useNavigate()
+  const [showModal, setShowModal] = useState(false)
+  const [shouldStart, setShouldStart] = useState(false)
+  const [isLive, setIsLive] = useState(false)
+  const [stream, setStream] = useState(null)
+  const [copied, setCopied] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
 
-  const [showModal, setShowModal] = useState(false);
-  const [shouldStart, setShouldStart] = useState(false);
-  const [isLive, setIsLive] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
-  const [stream, setStream] = useState(null);
-  const [copied, setCopied] = useState(false);
+  const { messages, viewers, connected, sendMessage, setLocalStream, socket } = useSocket(sessionId, 'Host', 'builder', true)
 
-  const { messages, viewers, connected, sendMessage, setLocalStream, sessionPaused, socket } = useSocket(sessionId, 'Host', 'builder', true);
+  const shareUrl = window.location.origin + '/s/' + sessionId
 
-  useEffect(() => {
-    if (socket) {
-      socket.on('session-ended', () => {
-        alert('Session has ended by the host.');
-        navigate('/');
-      });
+  const handleCopyLink = () => {
+    navigator.clipboard.writeText(shareUrl)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
 
-      socket.on('host-disconnected', () => {
-        alert('Host disconnected unexpectedly. Ending session.');
-        navigate('/');
-      });
+  const handleConfirm = () => {
+    setShowModal(false)
+    setShouldStart(true)
+  }
 
-      return () => {
-        socket.off('session-ended');
-        socket.off('host-disconnected');
-      };
-    }
-  }, [socket, navigate]);
+  const handleStreamReady = (mediaStream) => {
+    setStream(mediaStream)
+    setIsLive(true)
+    if (setLocalStream) setLocalStream(mediaStream)
+  }
 
-  useEffect(() => {
-    if (sessionPaused) {
-      setIsPaused(true);
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
-      setIsLive(false);
-    } else {
-      setIsPaused(false);
-    }
-  }, [sessionPaused, stream]);
+  const handleStreamEnd = () => {
+    setStream(null)
+    setIsLive(false)
+    setShouldStart(false)
+  }
 
-  const startStreaming = async () => {
-    try {
-      const mediaStream = await navigator.mediaDevices.getDisplayMedia({
-        video: true,
-        audio: true,
-      });
-      setStream(mediaStream);
-      setLocalStream(mediaStream);
-      setIsLive(true);
-      setShouldStart(true);
+  const handlePause = () => {
+    if (stream) stream.getTracks().forEach(t => { t.enabled = false })
+    setIsPaused(true)
+    if (socket) socket.emit('session_paused', { sessionId })
+  }
 
-      mediaStream.getVideoTracks()[0].onended = () => {
-        stopStreaming();
-      };
-    } catch (error) {
-      console.error('Error starting stream:', error);
-      setIsLive(false);
-    }
-  };
+  const handleResume = () => {
+    if (stream) stream.getTracks().forEach(t => { t.enabled = true })
+    setIsPaused(false)
+    if (socket) socket.emit('session_resumed', { sessionId })
+  }
 
-  const stopStreaming = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    setLocalStream(null);
-    setIsLive(false);
-    setShouldStart(false);
-    socket.emit('end-session', sessionId);
-    navigate('/');
-  };
-
-  const pauseStreaming = () => {
-    if (stream) {
-      stream.getTracks().forEach(track => track.stop());
-      setStream(null);
-    }
-    setLocalStream(null);
-    setIsPaused(true);
-    setIsLive(false);
-    socket.emit('pause-session', sessionId);
-  };
-
-  const resumeStreaming = async () => {
-    await startStreaming();
-    setIsPaused(false);
-    socket.emit('resume-session', sessionId);
-  };
-
-  const copyToClipboard = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/viewer/${sessionId}`);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
+  const handleEndSession = () => {
+    if (stream) stream.getTracks().forEach(t => t.stop())
+    fetch((import.meta.env.VITE_API_URL || '') + '/api/session/' + sessionId, { method: 'DELETE' })
+    navigate('/')
+  }
 
   return (
-    <div style={styles.container}>
-      <InstructionModal
-        showModal={showModal}
-        setShowModal={setShowModal}
-        shouldStart={shouldStart}
-        startStreaming={startStreaming}
-      />
+    <div className="flex flex-col h-screen bg-gray-900 text-white">
+      {showModal && (
+        <InstructionModal
+          onConfirm={handleConfirm}
+          onCancel={() => setShowModal(false)}
+        />
+      )}
 
-      <div style={styles.header}>
-        <h1 style={styles.title}>Builder Room: {sessionId}</h1>
-        <button onClick={() => setShowModal(true)} style={styles.infoButton}>
-          How to use?
-        </button>
-      </div>
-
-      <div style={styles.content}>
-        <div style={styles.screenShareContainer}>
-          {isLive && stream ? (
-            <ScreenShare stream={stream} />
-          ) : isPaused ? (
-            <div style={styles.pausedContainer}>
-              <p>Session Paused</p>
-              <button onClick={resumeStreaming} style={styles.actionButton}>
-                Resume Streaming
-              </button>
-            </div>
-          ) : (
-            <div style={styles.overlay}>
-              <p>Click 'Start Streaming' to begin your session</p>
-              <button onClick={startStreaming} style={styles.actionButton}>
-                Start Streaming
-              </button>
-            </div>
+      {/* Top bar */}
+      <header className="flex items-center justify-between p-4 bg-gray-800 shadow-md">
+        <h1 className="text-xl font-bold">
+          VibeLink <span className="text-gray-400 text-base">/ {sessionId}</span>
+        </h1>
+        <div className="flex items-center space-x-4">
+          {isLive && !isPaused && (
+            <button
+              onClick={handlePause}
+              className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded"
+            >
+              ⏸ Pause
+            </button>
           )}
+          {isLive && isPaused && (
+            <button
+              onClick={handleResume}
+              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+            >
+              ▶ Resume
+            </button>
+          )}
+          <button
+            onClick={handleEndSession}
+            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+          >
+            End Session
+          </button>
+        </div>
+      </header>
+
+      {/* Main content */}
+      <main className="flex flex-1 overflow-hidden">
+        {/* Share link card - always visible */}
+        <div className="flex flex-col p-4 bg-gray-800 m-4 rounded-lg shadow-lg w-1/4">
+          <h2 className="text-lg font-semibold mb-2">🔗 Share this link — viewers join here:</h2>
+          <p className="text-blue-400 mb-4 break-all">{shareUrl}</p>
+          <button
+            onClick={handleCopyLink}
+            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+          >
+            {copied ? '✓ Copied!' : 'Copy Link'}
+          </button>
         </div>
 
-        <div style={styles.sidebar}>
-          <div style={styles.viewersSection}>
-            <h2>Viewers ({viewers.length})</h2>
-            <div style={styles.viewerList}>
-              {viewers.map((viewer, index) => (
-                <p key={index}>{viewer}</p>
-              ))}
-            </div>
+        {/* Before live */}
+        {!isLive && (
+          <div className="flex flex-col items-center justify-center flex-1 p-4">
+            <button
+              onClick={() => setShowModal(true)}
+              style={{ background: '#06b6d4', color: 'white', border: 'none', padding: '1rem 3rem', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
+            >
+              ▶ Start Screen Share
+            </button>
+            <p className="text-gray-400 mt-4">Viewers can already join via the link above. Start sharing when ready.</p>
           </div>
+        )}
 
-          <div style={styles.chatSection}>
+        {/* Always render ScreenShare so it can react to shouldStart */}
+        <ScreenShare
+          shouldStart={shouldStart}
+          onStreamReady={handleStreamReady}
+          onStreamEnd={handleStreamEnd}
+        />
+
+        {/* Live UI */}
+        {isLive && (
+          <div className="flex flex-col w-1/4">
+            <div className="bg-gray-800 m-4 p-4 rounded-lg shadow-lg">
+              <h2 className="text-lg font-semibold mb-2">
+                {isPaused
+                  ? <span className="text-yellow-400">⏸ Session Paused</span>
+                  : <span className="text-green-500">🔴 You are live</span>
+                }
+              </h2>
+              <p className="text-gray-400">{viewers.length} people watching</p>
+            </div>
             <SessionChat messages={messages} sendMessage={sendMessage} />
           </div>
-
-          <div style={styles.controlsSection}>
-            <p style={styles.statusText}>
-              Status: {connected ? 'Connected' : 'Disconnected'}
-            </p>
-            <p style={styles.statusText}>Stream: {isLive ? 'Live' : 'Offline'}</p>
-            <div style={styles.controlButtons}>
-              <button onClick={copyToClipboard} style={styles.actionButton}>
-                {copied ? 'Copied!' : 'Copy Viewer Link'}
-              </button>
-              {isLive ? (
-                <button onClick={pauseStreaming} style={styles.actionButton}>
-                  Pause Streaming
-                </button>
-              ) : null}
-              <button onClick={stopStreaming} style={styles.actionButton}>
-                End Session
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+        )}
+      </main>
     </div>
-  );
+  )
 }
-
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    height: '100vh',
-    backgroundColor: '#282c34',
-    color: 'white',
-    fontFamily: 'Arial, sans-serif',
-  },
-  header: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '10px 20px',
-    backgroundColor: '#20232a',
-    borderBottom: '1px solid #3a3f47',
-  },
-  title: {
-    margin: 0,
-    fontSize: '24px',
-  },
-  infoButton: {
-    backgroundColor: '#61dafb',
-    color: '#282c34',
-    border: 'none',
-    padding: '8px 15px',
-    borderRadius: '5px',
-    cursor: 'pointer',
-    fontSize: '16px',
-  },
-  content: {
-    display: 'flex',
-    flex: 1,
-  },
-  screenShareContainer: {
-    flex: 3,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#000',
-    position: 'relative',
-  },
-  overlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(0,0,0,0.7)',
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 10,
-  },
-  pausedContainer: {
-    display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  actionButton: {
-    backgroundColor: '#61dafb',
-    color: '#282c34',
-    border: 'none',
-    padding: '10px 20px',
-    borderRadius: '5px',
-    cursor: 'pointer',
-    fontSize: '18px',
-    marginTop: '10px',
-    margin: '5px',
-  },
-  sidebar: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    backgroundColor: '#20232a',
-    borderLeft: '1px solid #3a3f47',
-  },
-  viewersSection: {
-    padding: '10px',
-    borderBottom: '1px solid #3a3f47',
-    maxHeight: '200px',
-    overflowY: 'auto',
-  },
-  viewerList: {
-    marginTop: '10px',
-  },
-  chatSection: {
-    flex: 1,
-    padding: '10px',
-    borderBottom: '1px solid #3a3f47',
-    display: 'flex',
-    flexDirection: 'column',
-  },
-  controlsSection: {
-    padding: '10px',
-  },
-  statusText: {
-    margin: '5px 0',
-  },
-  controlButtons: {
-    display: 'flex',
-    flexDirection: 'column',
-    marginTop: '10px',
-  },
-};
