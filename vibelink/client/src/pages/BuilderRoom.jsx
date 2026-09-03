@@ -61,7 +61,7 @@ export default function BuilderRoom() {
   }
 
   return (
-    <div className="flex flex-col h-screen bg-gray-900 text-white">
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#0d0d0d', color: 'white' }}>
       {showModal && (
         <InstructionModal
           onConfirm={handleConfirm}
@@ -70,15 +70,15 @@ export default function BuilderRoom() {
       )}
 
       {/* Top bar */}
-      <header className="flex items-center justify-between p-4 bg-gray-800 shadow-md">
-        <h1 className="text-xl font-bold">
-          VibeLink <span className="text-gray-400 text-base">/ {sessionId}</span>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', backgroundColor: '#111', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)' }}>
+        <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+          VibeLink <span style={{ color: '#aaa', fontSize: '1rem' }}>/ {sessionId}</span>
         </h1>
-        <div className="flex items-center space-x-4">
+        <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {isLive && !isPaused && (
             <button
               onClick={handlePause}
-              className="bg-yellow-500 hover:bg-yellow-600 text-white font-bold py-2 px-4 rounded"
+              style={{ backgroundColor: '#f59e0b', color: 'white', fontWeight: 'bold', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}
             >
               ⏸ Pause
             </button>
@@ -86,14 +86,14 @@ export default function BuilderRoom() {
           {isLive && isPaused && (
             <button
               onClick={handleResume}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2 px-4 rounded"
+              style={{ backgroundColor: '#22c55e', color: 'white', fontWeight: 'bold', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}
             >
               ▶ Resume
             </button>
           )}
           <button
             onClick={handleEndSession}
-            className="bg-red-500 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+            style={{ backgroundColor: '#ef4444', color: 'white', fontWeight: 'bold', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}
           >
             End Session
           </button>
@@ -101,14 +101,14 @@ export default function BuilderRoom() {
       </header>
 
       {/* Main content */}
-      <main className="flex flex-1 overflow-hidden">
+      <main style={{ display: 'flex', flex: '1', overflow: 'hidden' }}>
         {/* Share link card - always visible */}
-        <div className="flex flex-col p-4 bg-gray-800 m-4 rounded-lg shadow-lg w-1/4">
-          <h2 className="text-lg font-semibold mb-2">🔗 Share this link — viewers join here:</h2>
-          <p className="text-blue-400 mb-4 break-all">{shareUrl}</p>
+        <div style={{ display: 'flex', flexDirection: 'column', padding: '1rem', backgroundColor: '#1a1a1a', margin: '1rem', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)', width: '25%', border: '1px solid #333' }}>
+          <h2 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem', color: 'white' }}>🔗 Share this link — viewers join here:</h2>
+          <p style={{ color: '#60a5fa', marginBottom: '1rem', wordBreak: 'break-all' }}>{shareUrl}</p>
           <button
             onClick={handleCopyLink}
-            className="bg-blue-500 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded"
+            style={{ backgroundColor: '#3b82f6', color: 'white', fontWeight: 'bold', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}
           >
             {copied ? '✓ Copied!' : 'Copy Link'}
           </button>
@@ -116,14 +116,14 @@ export default function BuilderRoom() {
 
         {/* Before live */}
         {!isLive && (
-          <div className="flex flex-col items-center justify-center flex-1 p-4">
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: '1', padding: '1rem' }}>
             <button
               onClick={() => setShowModal(true)}
               style={{ background: '#06b6d4', color: 'white', border: 'none', padding: '1rem 3rem', borderRadius: '8px', fontSize: '1.1rem', fontWeight: 'bold', cursor: 'pointer' }}
             >
               ▶ Start Screen Share
             </button>
-            <p className="text-gray-400 mt-4">Viewers can already join via the link above. Start sharing when ready.</p>
+            <p style={{ color: '#aaa', marginTop: '1rem' }}>Viewers can already join via the link above. Start sharing when ready.</p>
           </div>
         )}
 
@@ -136,15 +136,15 @@ export default function BuilderRoom() {
 
         {/* Live UI */}
         {isLive && (
-          <div className="flex flex-col w-1/4">
-            <div className="bg-gray-800 m-4 p-4 rounded-lg shadow-lg">
-              <h2 className="text-lg font-semibold mb-2">
+          <div style={{ display: 'flex', flexDirection: 'column', width: '25%' }}>
+            <div style={{ backgroundColor: '#1a1a1a', margin: '1rem', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
+              <h2 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem', color: 'white' }}>
                 {isPaused
-                  ? <span className="text-yellow-400">⏸ Session Paused</span>
-                  : <span className="text-green-500">🔴 You are live</span>
+                  ? <span style={{ color: '#fbbf24' }}>⏸ Session Paused</span>
+                  : <span style={{ color: '#22c55e' }}>🔴 You are live</span>
                 }
               </h2>
-              <p className="text-gray-400">{viewers.length} people watching</p>
+              <p style={{ color: '#aaa' }}>{viewers.length} people watching</p>
             </div>
             <SessionChat messages={messages} sendMessage={sendMessage} />
           </div>

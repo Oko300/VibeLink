@@ -33,4 +33,6 @@ router.delete('/:sessionId', (req, res) => {
   res.json({ message: 'Session ended' });
 });
 
+router.get('/ping', (req, res) => res.json({ ok: true, time: Date.now() }))
+
 export default router;

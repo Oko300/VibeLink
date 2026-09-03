@@ -36,6 +36,14 @@ app.use('/auth', authRoutes);
 
 initSessionSocket(io);
 
+// Keep Render free tier awake
+const SELF_URL = process.env.RENDER_EXTERNAL_URL || null
+if (SELF_URL) {
+  setInterval(() => {
+    fetch(SELF_URL + '/api/session/ping').catch(() => {})
+  }, 14 * 60 * 1000) // ping every 14 minutes
+}
+
 server.listen(PORT, () => {
   console.log(`VibeLink server running on port ${PORT}`);
 });
