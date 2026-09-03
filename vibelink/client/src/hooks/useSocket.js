@@ -17,12 +17,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
   // Helper function for WebRTC offer initiation
   const initiateWebRTC = async (viewerSocketId, socket) => {
     if (!localStreamRef.current) return
-    const pc = new RTCPeerConnection({
-      iceServers: [
-        { urls: 'stun:stun.l.google.com:19302' },
-        { urls: 'stun:stun1.l.google.com:19302' }
-      ]
-    })
+    const pc = new RTCPeerConnection(ICE_SERVERS)
     peerConnections.current[viewerSocketId] = pc
     localStreamRef.current.getTracks().forEach(track => {
       pc.addTrack(track, localStreamRef.current)
@@ -33,7 +28,10 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
       }
     }
     try {
-      const offer = await pc.createOffer()
+      const offer = await pc.createOffer({
+        offerToReceiveVideo: true,
+        offerToReceiveAudio: false
+      })
       await pc.setLocalDescription(offer)
       socket.emit('webrtc_offer', { targetSocketId: viewerSocketId, offer })
     } catch (e) {
@@ -43,6 +41,30 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
 
   useEffect(() => {
     if (!sessionId) return
+
+    const ICE_SERVERS = {
+      iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' },
+        { urls: 'stun:stun1.l.google.com:19302' },
+        { urls: 'stun:stun2.l.google.com:19302' },
+        { urls: 'stun:stun3.l.google.com:19302' },
+        {
+          urls: 'turn:openrelay.metered.ca:80',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        },
+        {
+          urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+          username: 'openrelayproject',
+          credential: 'openrelayproject'
+        }
+      ]
+    }
 
     const socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
@@ -107,12 +129,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     })
 
     socket.on('webrtc_offer', async ({ from, offer }) => {
-      const pc = new RTCPeerConnection({
-        iceServers: [
-          { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
-        ]
-      })
+      const pc = new RTCPeerConnection(ICE_SERVERS)
       peerConnections.current[from] = pc
       pc.onicecandidate = (event) => {
         if (event.candidate) {
