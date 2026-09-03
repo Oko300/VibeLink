@@ -148,5 +148,5 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
 
   const setLocalStream = (stream) => { localStreamRef.current = stream }
 
-  return { messages, viewers, connected, sendMessage, kickViewer, socket: socketRef.current, setLocalStream, remoteStream, sessionPaused }
+  return { messages, viewers, connected, sendMessage, kickViewer, setLocalStream, remoteStream, sessionPaused, socket: socketRef.current }
 }

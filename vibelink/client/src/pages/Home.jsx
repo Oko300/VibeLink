@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import XAuthButton from '../components/XAuthButton';
-import { useAuth } from '../hooks/useAuth';
+
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
+
 
   const startSession = async () => {
     setLoading(true);
@@ -19,7 +18,7 @@ export default function Home() {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ displayName: user ? user.username : 'Anonymous' }),
+        body: JSON.stringify({ displayName: 'Anonymous' }),
       });
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -37,9 +36,7 @@ export default function Home() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.authContainer}>
-        <XAuthButton />
-      </div>
+
       <h1 style={styles.heading}>VibeLink</h1>
       <p style={styles.tagline}>Drop a link. Let your community watch the AI build with you in real time.</p>
       <button
@@ -90,10 +87,6 @@ const styles = {
   errorText: {
     color: 'red',
     marginTop: '20px',
-    authContainer: {
-      position: 'absolute',
-      top: '20px',
-      right: '20px',
-    },
+
   }
 };

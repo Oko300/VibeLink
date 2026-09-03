@@ -1,19 +1,10 @@
-import React, { useState, useEffect } from 'react';
-import XAuthButton from './XAuthButton';
-import { useAuth } from '../hooks/useAuth';
+import React, { useState } from 'react';
 
 export default function JoinScreen({ sessionId, onJoin }) {
-  const { user, login } = useAuth();
-  const [inputName, setInputName] = useState(user?.username || '');
-
-  useEffect(() => {
-    if (user && !inputName) {
-      setInputName(user.username);
-    }
-  }, [user]);
+  const [inputName, setInputName] = useState('');
 
   const handleJoin = () => {
-    onJoin(user ? user.username : inputName.trim() || 'Guest');
+    onJoin(inputName.trim() || 'Guest');
   };
 
   const styles = {
@@ -88,27 +79,7 @@ export default function JoinScreen({ sessionId, onJoin }) {
       color: '#666',
       marginTop: '1rem',
     },
-    authOption: {
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      gap: '1rem',
-      marginTop: '2rem',
-    },
-    joinAsButton: {
-      width: '100%',
-      maxWidth: '400px',
-      padding: '1rem',
-      borderRadius: '8px',
-      background: '#06b6d4',
-      color: 'white',
-      fontSize: '16px',
-      fontWeight: 'bold',
-      border: 'none',
-      cursor: 'pointer',
-      marginTop: '1rem',
-      transition: 'background-color 0.2s',
-    },
+
   };
 
   return (
@@ -121,28 +92,16 @@ export default function JoinScreen({ sessionId, onJoin }) {
         🛡 Private session · Invite only · Session ends when host closes it
       </div>
 
-      <p style={styles.smallText}>No account required · Built for Commons builders</p>
-
-      {!user ? (
-        <div style={styles.authOption}>
-          <p>Or sign in with X to use your X username:</p>
-          <XAuthButton />
-          <input
-            type="text"
-            placeholder="Your name (optional — leave blank for Guest)"
-            value={inputName}
-            onChange={(e) => setInputName(e.target.value)}
-            style={styles.nameInput}
-          />
-          <button onClick={handleJoin} style={styles.joinButton}>
-            Join Session →
-          </button>
-        </div>
-      ) : (
-        <button onClick={handleJoin} style={styles.joinAsButton}>
-          Join as @{user.username} →
-        </button>
-      )}
+      <input
+        type="text"
+        placeholder="Your name (optional — leave blank for Guest)"
+        value={inputName}
+        onChange={(e) => setInputName(e.target.value)}
+        style={styles.nameInput}
+      />
+      <button onClick={handleJoin} style={styles.joinButton}>
+        Join Session →
+      </button>
     </div>
   );
 }
