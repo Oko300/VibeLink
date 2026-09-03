@@ -236,31 +236,6 @@ export default function BuilderRoom() {
       maxWidth: '1200px', // Adjust as needed
       alignItems: 'flex-start', // Align items to the top
     },
-    streamColumn: {
-      flex: 1,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      backgroundColor: '#1a1a1a', // Background for the stream area
-      borderRadius: '12px',
-      padding: '1rem',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-    },
-    chatColumn: {
-      width: '320px',
-      minWidth: '320px',
-      backgroundColor: '#1a1a1a', // Background for chat
-      borderRadius: '12px',
-      padding: '1rem',
-      boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
-      display: 'flex',
-      flexDirection: 'column',
-      height: 'calc(100vh - 80px - 2rem)', // Adjusted height for chat column
-      // To ensure chat doesn't overflow, considering topBar and padding
-      maxHeight: 'calc(100vh - 80px - 40px)', // topBarHeight + top/bottom padding
-    },
-    pausedBadge: {
-      backgroundColor: '#1f2937', // blue-gray-800
   return (
     <div style={styles.container}>
       {showModal && <InstructionModal onConfirm={handleConfirm} />}
@@ -348,6 +323,31 @@ export default function BuilderRoom() {
   );
 }
 
+    streamColumn: {
+      flex: 1,
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      backgroundColor: '#1a1a1a', // Background for the stream area
+      borderRadius: '12px',
+      padding: '1rem',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+    },
+    chatColumn: {
+      width: '320px',
+      minWidth: '320px',
+      backgroundColor: '#1a1a1a', // Background for chat
+      borderRadius: '12px',
+      padding: '1rem',
+      boxShadow: '0 4px 8px rgba(0,0,0,0.3)',
+      display: 'flex',
+      flexDirection: 'column',
+      height: 'calc(100vh - 80px - 2rem)', // Adjusted height for chat column
+      // To ensure chat doesn't overflow, considering topBar and padding
+      maxHeight: 'calc(100vh - 80px - 40px)', // topBarHeight + top/bottom padding
+    },
+    pausedBadge: {
+      backgroundColor: '#1f2937', // blue-gray-800
       color: '#9ca3af', // blue-gray-400
       padding: '0.5rem 1rem',
       borderRadius: '20px',
@@ -375,4 +375,3 @@ export default function BuilderRoom() {
       navigate('/');
     }
   };
-
