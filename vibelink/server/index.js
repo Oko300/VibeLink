@@ -5,6 +5,9 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 dotenv.config();
 
+import session from 'express-session';
+import passport from 'passport';
+
 import sessionRoutes from './routes/session.js';
 import authRoutes from './routes/auth.js';
 import { initSessionSocket } from './socket/sessionSocket.js';
@@ -23,6 +26,9 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({
   origin: process.env.CLIENT_URL,
 }));
+app.use(session({ secret: process.env.JWT_SECRET, resave: false, saveUninitialized: false }));
+app.use(passport.initialize());
+app.use(passport.session());
 app.use(express.json());
 
 app.use('/api/session', sessionRoutes);

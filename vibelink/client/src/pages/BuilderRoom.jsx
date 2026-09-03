@@ -10,7 +10,7 @@ export default function BuilderRoom() {
   const { sessionId } = useParams();
   const navigate = useNavigate();
 
-  const [showModal, setShowModal] = useState(true);
+  const [showModal, setShowModal] = useState(false);
   const [shouldStart, setShouldStart] = useState(false);
   const [isLive, setIsLive] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
@@ -32,7 +32,7 @@ export default function BuilderRoom() {
     if (socket) {
       socket.emit('session_resumed', { sessionId });
     }
-    setLocalStream(mediaStream);
+
   };
 
   const handleStreamEnd = () => {
@@ -40,7 +40,7 @@ export default function BuilderRoom() {
     setIsPaused(false);
     setShouldStart(false);
     setStream(null);
-    setShowModal(true);
+    // Removed setShowModal(true);
     if (socket) {
       socket.emit('session_paused', { sessionId });
     }
@@ -119,7 +119,8 @@ export default function BuilderRoom() {
     },
     vibelinkText: {
       fontWeight: 'bold',
-      fontSize: '1.2em',
+      fontSize: '1.5rem',
+      color: '#00bcd4',
     },
     sessionIdText: {
       color: '#aaa',
@@ -258,14 +259,28 @@ export default function BuilderRoom() {
       marginLeft: '10px',
     },
     pausedBadge: {
-      backgroundColor: '#4a5568',
-      color: '#cbd5e0',
-      padding: '0.4rem 1rem',
+      backgroundColor: '#f59e0b',
+      color: 'white',
+      padding: '0.5rem 1rem',
       borderRadius: '20px',
       fontSize: '14px',
       fontWeight: 'bold',
-      marginBottom: '1.5rem',
-    }
+      marginTop: '1rem',
+    },
+    liveBadge: {
+      backgroundColor: '#ef4444',
+      color: 'white',
+      padding: '0.5rem 1rem',
+      borderRadius: '20px',
+      fontSize: '14px',
+      fontWeight: 'bold',
+      marginTop: '1rem',
+    },
+    viewerCount: {
+      color: '#cbd5e0',
+      marginTop: '0.5rem',
+      fontSize: '0.9rem',
+    },
   };
 
   return (
@@ -292,29 +307,43 @@ export default function BuilderRoom() {
         </div>
       </div>
 
-      <div style={styles.shareLinkCard}>
-        <p style={styles.shareLinkLabel}>Your session link — share this with your community:</p>
-        <div style={styles.shareLinkUrl}>
-          {window.location.origin}/s/{sessionId}
-        </div>
-        <button
-          onClick={handleCopyLink}
-          style={{...styles.copyButton, ...(copied ? styles.copyButtonCopied : {})}}
-        >
-          {copied ? 'Copied!' : 'Copy Link'}
-        </button>
-      </div>
-
       <div style={styles.mainContent}>
-        {isLive ? (
+        <div style={styles.shareLinkCard}>
+          <p style={styles.shareLinkLabel}>Your session link — share this with your community:</p>
+          <div style={styles.shareLinkUrl}>
+            {window.location.origin}/s/{sessionId}
+          </div>
+          <button
+            onClick={handleCopyLink}
+            style={{...styles.copyButton, ...(copied ? styles.copyButtonCopied : {})}}
+          >
+            {copied ? 'Copied!' : 'Copy Link'}
+          </button>
+        </div>
+
+        {!isLive && (
+          <div style={styles.preLiveContent}>
+            <button
+              onClick={() => setShowModal(true)}
+              style={styles.startButton}
+            >
+              Start Screen Share
+            </button>
+            <p style={styles.viewerInstructionText}>Viewers join via the link above. Start sharing when ready.</p>
+          </div>
+        )}
+
+        {isLive && (
           <div style={styles.liveContent}>
             <div style={styles.streamColumn}>
               <div style={{width: '100%', height: 'auto', aspectRatio: '16/9', backgroundColor: 'black', marginBottom: '1rem'}}>
-                <ScreenShare
-                  shouldStart={shouldStart}
-                  onStreamReady={handleStreamReady}
-                  onStreamEnd={handleStreamEnd}
-                />
+                {shouldStart && (
+                  <ScreenShare
+                    shouldStart={shouldStart}
+                    onStreamReady={handleStreamReady}
+                    onStreamEnd={handleStreamEnd}
+                  />
+                )}
               </div>
               {isPaused ? (
                 <div style={styles.pausedBadge}>⏸ Session Paused</div>
@@ -327,26 +356,6 @@ export default function BuilderRoom() {
               <SessionChat messages={messages} onSendMessage={sendMessage} currentUserName="Host" isConnected={connected} />
             </div>
           </div>
-        ) : (
-          <>
-            {/* Always render ScreenShare but hide it when not needed */}
-            <div style={{width: '100%', height: 'auto', aspectRatio: '16/9', backgroundColor: 'black', marginBottom: '1rem', display: shouldStart ? 'block' : 'none'}}>
-              <ScreenShare
-                shouldStart={shouldStart}
-                onStreamReady={handleStreamReady}
-                onStreamEnd={handleStreamEnd}
-              />
-            </div>
-            {!isLive && shouldStart && (
-              <p style={styles.statusMessage}>Starting screen share...</p>
-            )}
-            {!isLive && !shouldStart && !showModal && (
-              <p style={styles.statusMessage}>Screen sharing ended. Refresh to start again.</p>
-            )}
-            {!isLive && !shouldStart && showModal && (
-              <p style={styles.statusMessage}>Click "Start Session" to begin screen sharing.</p>
-            )}
-          </>
         )}
       </div>
     </div>
