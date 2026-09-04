@@ -16,6 +16,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
 
   // Helper function for WebRTC offer initiation
   const initiateWebRTC = async (viewerSocketId, socket) => {
+    console.log("initiateWebRTC called for viewer:", viewerSocketId, "localStream ready:", !!localStreamRef.current)
     if (!localStreamRef.current) return
     const pc = new RTCPeerConnection(ICE_SERVERS)
     peerConnections.current[viewerSocketId] = pc
@@ -131,19 +132,23 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
         }
       }
       pc.ontrack = (event) => {
+        console.log("ontrack fired - streams:", event.streams.length, "track kind:", event.track.kind)
         console.log('ontrack fired, streams:', event.streams)
         console.log('track kind:', event.track.kind)
         if (event.streams && event.streams[0]) {
           console.log('Setting remote stream')
+          console.log("setRemoteStream called with:", event.streams[0])
           setRemoteStream(event.streams[0])
         } else {
           console.log('No streams in ontrack event, creating new MediaStream')
           const newStream = new MediaStream()
           newStream.addTrack(event.track)
           setRemoteStream(newStream)
+          console.log("setRemoteStream called with:", newStream)
         }
       }
       try {
+        console.log("Viewer received offer, setting remote description")
         await pc.setRemoteDescription(new RTCSessionDescription(offer))
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)

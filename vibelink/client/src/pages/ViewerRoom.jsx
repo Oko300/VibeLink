@@ -33,6 +33,7 @@ export default function ViewerRoom() {
   useEffect(() => {
     if (remoteStream && videoRef.current) {
       console.log('Remote stream received, tracks:', remoteStream.getTracks())
+      console.log("Setting video srcObject:", remoteStream)
       videoRef.current.srcObject = remoteStream
       setStreamReceived(true)
       const playPromise = videoRef.current.play()
