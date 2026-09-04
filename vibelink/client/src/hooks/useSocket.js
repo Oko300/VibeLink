@@ -130,6 +130,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
       peerConnections.current[from] = pc
       pc.onicecandidate = (event) => {
         if (event.candidate) {
+          addDebug('local cand: ' + event.candidate.type);
           socket.emit('webrtc_ice_candidate', { targetSocketId: from, candidate: event.candidate })
         }
       }

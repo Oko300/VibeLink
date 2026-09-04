@@ -16,7 +16,7 @@ export default function ViewerRoom() {
   const [needsTap, setNeedsTap] = useState(false)
   const [streamReceived, setStreamReceived] = useState(false)
   const [debugLog, setDebugLog] = useState([]);
-  const addDebug = (msg) => setDebugLog(prev => [...prev.slice(-8), `${new Date().toLocaleTimeString()}: ${msg}`]);
+  const addDebug = (msg) => setDebugLog(prev => [...prev.slice(-14), `${new Date().toLocaleTimeString()}: ${msg}`]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   useEffect(() => {
