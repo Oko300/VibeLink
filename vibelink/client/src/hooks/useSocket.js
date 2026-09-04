@@ -7,15 +7,14 @@ const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:global.stun.twilio.com:3478' },
     {
       urls: [
-        'turn:a.relay.metered.ca:80',
-        'turn:a.relay.metered.ca:443',
-        'turn:a.relay.metered.ca:443?transport=tcp',
-        'turns:a.relay.metered.ca:443'
+        'turn:relay1.expressturn.com:3478',
+        'turns:relay1.expressturn.com:5349'
       ],
-      username: 'e8dd65f08bf6dc2bDeveloper: Reload Windowaf7fb7f4',
-      credential: 'uBMZi5L2CJHP7Yv+'
+      username: 'efUKOPTOO5LFMKAJCO',
+      credential: 'U4zMKD5rfOMsDyMN'
     }
   ],
   iceCandidatePoolSize: 10
