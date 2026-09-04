@@ -15,6 +15,15 @@ export default function ViewerRoom() {
   const [displayName, setDisplayName] = useState('Guest')
   const [needsTap, setNeedsTap] = useState(false)
   const [streamReceived, setStreamReceived] = useState(false)
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
+
+  useEffect(() => {
+    const handleResize = () => {
+      setIsMobile(window.innerWidth < 768)
+    }
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
+  }, [])
 
   const { messages, viewers, connected, sendMessage, remoteStream, sessionPaused } = useSocket(
     sessionId,
@@ -75,11 +84,11 @@ export default function ViewerRoom() {
   }
 
   return (
-    <div style={{ display: 'flex', height: '100vh', background: '#1a202c', color: 'white' }}>
-      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}>
+    <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', height: '100vh', background: '#1a202c', color: 'white' }}>
+      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem', width: isMobile ? '100%' : 'auto', minHeight: isMobile ? '240px' : 'auto', height: isMobile ? '50vh' : 'auto' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>VibeLink</h1>
         <p style={{ color: '#ef4444', marginBottom: '1rem' }}>🔴 Live</p>
-        <div style={{ width: '100%', maxWidth: '800px', aspectRatio: '16/9', background: 'black', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
+        <div style={{ width: '100%', maxWidth: isMobile ? '100%' : '800px', aspectRatio: '16/9', background: 'black', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
           <video
             ref={videoRef}
             autoPlay
