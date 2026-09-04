@@ -134,6 +134,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
         }
       }
       pc.ontrack = (event) => {
+        console.log('VIEWER ontrack fired - track:', event.track.kind, 'streams:', event.streams.length);
         console.log("ontrack fired - streams:", event.streams.length, "track kind:", event.track.kind)
         console.log('ontrack fired, streams:', event.streams)
         console.log('track kind:', event.track.kind)
