@@ -15,6 +15,8 @@ export default function ViewerRoom() {
   const [displayName, setDisplayName] = useState('Guest')
   const [needsTap, setNeedsTap] = useState(false)
   const [streamReceived, setStreamReceived] = useState(false)
+  const [debugLog, setDebugLog] = useState([]);
+  const addDebug = (msg) => setDebugLog(prev => [...prev.slice(-8), `${new Date().toLocaleTimeString()}: ${msg}`]);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   useEffect(() => {
@@ -29,7 +31,8 @@ export default function ViewerRoom() {
     sessionId,
     displayName,
     'viewer',
-    hasJoined
+    hasJoined,
+    addDebug
   )
 
   useEffect(() => {
@@ -43,6 +46,7 @@ export default function ViewerRoom() {
     if (remoteStream && videoRef.current) {
       console.log('Setting srcObject, tracks:', remoteStream.getTracks());
       videoRef.current.srcObject = remoteStream;
+      addDebug('srcObject assigned');
       videoRef.current.muted = true;
       videoRef.current.playsInline = true;
       videoRef.current.autoplay = true;
@@ -122,6 +126,9 @@ export default function ViewerRoom() {
         currentDisplayName={'Guest'}
         currentUserRole={'viewer'}
       />
+      <div style={{position:'fixed', bottom:0, left:0, right:0, background:'rgba(0,0,0,0.85)', color:'#0f0', fontSize:'10px', padding:'4px', zIndex:9999, maxHeight:'120px', overflowY:'auto'}}>
+        {debugLog.map((l, i) => <div key={i}>{l}</div>)}
+      </div>
     </div>
   )
 }

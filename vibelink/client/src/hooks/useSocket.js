@@ -14,14 +14,14 @@ const ICE_SERVERS = {
         'turn:a.relay.metered.ca:443?transport=tcp',
         'turns:a.relay.metered.ca:443'
       ],
-      username: 'e8dd65f08bf6dc2baf7fb7f4',
+      username: 'e8dd65f08bf6dc2bDeveloper: Reload Windowaf7fb7f4',
       credential: 'uBMZi5L2CJHP7Yv+'
     }
   ],
   iceCandidatePoolSize: 10
 };
 
-export function useSocket(sessionId, displayName, role, shouldJoin) {
+export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = () => {}) {
   const socketRef = useRef(null)
   const localStreamRef = useRef(null)
   const peerConnections = useRef({})
@@ -126,6 +126,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     })
 
     socket.on('webrtc_offer', async ({ from, offer }) => {
+      addDebug('offer received');
       const pc = new RTCPeerConnection(ICE_SERVERS)
       peerConnections.current[from] = pc
       pc.onicecandidate = (event) => {
@@ -133,8 +134,12 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
           socket.emit('webrtc_ice_candidate', { targetSocketId: from, candidate: event.candidate })
         }
       }
+      pc.oniceconnectionstatechange = () => {
+        addDebug('ICE state: ' + pc.iceConnectionState);
+      }
       pc.ontrack = (event) => {
         console.log('VIEWER ontrack fired - track:', event.track.kind, 'streams:', event.streams.length);
+        addDebug('ontrack fired: ' + event.track.kind);
         console.log("ontrack fired - streams:", event.streams.length, "track kind:", event.track.kind)
         console.log('ontrack fired, streams:', event.streams)
         console.log('track kind:', event.track.kind)
@@ -142,10 +147,12 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
           console.log('Setting remote stream')
           console.log("setRemoteStream called with:", event.streams[0])
           setRemoteStream(event.streams[0])
+          addDebug('remoteStream set');
         } else {
           console.log('No streams in ontrack event, creating new MediaStream')
           const newStream = new MediaStream()
           newStream.addTrack(event.track)
+          addDebug('remoteStream set');
           setRemoteStream(newStream)
           console.log("setRemoteStream called with:", newStream)
         }
@@ -153,7 +160,9 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
       try {
         console.log("Viewer received offer, setting remote description")
         await pc.setRemoteDescription(new RTCSessionDescription(offer))
+        addDebug('remote desc set');
         const answer = await pc.createAnswer()
+        addDebug('answer created');
         await pc.setLocalDescription(answer)
         socket.emit('webrtc_answer', { targetSocketId: from, answer })
       } catch (e) {
