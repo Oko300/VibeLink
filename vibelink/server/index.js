@@ -6,6 +6,7 @@ dotenv.config()
 
 import sessionRouter from './routes/session.js'
 import authRouter from './routes/auth.js'
+import iceRouter from './routes/ice.js'
 import { initSessionSocket } from './socket/sessionSocket.js'
 
 const app = express()
@@ -33,6 +34,7 @@ app.use((req, res, next) => {
 
 app.use('/api/session', sessionRouter)
 app.use('/auth', authRouter)
+app.use('/api/ice-servers', iceRouter)
 
 app.get('/', (req, res) => res.json({ status: 'VibeLink server running' }))
 

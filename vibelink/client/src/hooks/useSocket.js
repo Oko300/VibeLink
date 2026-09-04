@@ -3,22 +3,9 @@ import { io } from 'socket.io-client'
 
 const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
-const ICE_SERVERS = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:global.stun.twilio.com:3478' },
-    {
-      urls: [
-        'turn:relay1.expressturn.com:3478',
-        'turns:relay1.expressturn.com:5349'
-      ],
-      username: 'efUKOPTOO5LFMKAJCO',
-      credential: 'U4zMKD5rfOMsDyMN'
-    }
-  ],
-  iceCandidatePoolSize: 10
-};
+// Fallback used until /api/ice-servers responds with the full Metered TURN set.
+// STUN-only is enough for same-network peers but not for cellular viewers.
+const DEFAULT_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }]
 
 export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = () => {}) {
   const socketRef = useRef(null)
@@ -30,12 +17,28 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
   const [remoteStream, setRemoteStream] = useState(null)
   const [sessionPaused, setSessionPaused] = useState(false)
   const pendingViewers = useRef([])
+  const [iceServers, setIceServers] = useState(DEFAULT_ICE_SERVERS)
+  // Ref mirror so the socket-event closures (registered once per session) always
+  // read the freshest TURN credentials rather than the captured default.
+  const iceServersRef = useRef(DEFAULT_ICE_SERVERS)
+
+  useEffect(() => {
+    fetch((import.meta.env.VITE_API_URL || '') + '/api/ice-servers')
+      .then(r => r.json())
+      .then(servers => {
+        if (Array.isArray(servers) && servers.length) {
+          setIceServers(servers)
+          iceServersRef.current = servers
+        }
+      })
+      .catch(() => console.warn('Could not fetch ICE servers, using STUN only'))
+  }, [])
 
   // Helper function for WebRTC offer initiation
   const initiateWebRTC = async (viewerSocketId, socket) => {
     console.log("initiateWebRTC called for viewer:", viewerSocketId, "localStream ready:", !!localStreamRef.current)
     if (!localStreamRef.current) return
-    const pc = new RTCPeerConnection(ICE_SERVERS)
+    const pc = new RTCPeerConnection({ iceServers: iceServersRef.current, iceCandidatePoolSize: 10 })
     peerConnections.current[viewerSocketId] = pc
     localStreamRef.current.getTracks().forEach(track => {
       pc.addTrack(track, localStreamRef.current)
@@ -126,7 +129,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
 
     socket.on('webrtc_offer', async ({ from, offer }) => {
       addDebug('offer received');
-      const pc = new RTCPeerConnection(ICE_SERVERS)
+      const pc = new RTCPeerConnection({ iceServers: iceServersRef.current, iceCandidatePoolSize: 10 })
       peerConnections.current[from] = pc
       pc.onicecandidate = (event) => {
         if (event.candidate) {
