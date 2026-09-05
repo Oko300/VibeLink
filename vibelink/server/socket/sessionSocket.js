@@ -19,6 +19,13 @@ export function initSessionSocket(io) {
         });
         io.to(sessionId).emit('viewer_list', sessionStore.getViewers(sessionId))
 
+        // Tell the newcomer about the other viewers already here so it can
+        // build audio-mesh connections directly with each of them.
+        const otherViewerSocketIds = sessionStore.getViewers(sessionId)
+          .map(v => v.socketId)
+          .filter(id => id !== socket.id)
+        socket.emit('viewers_in_session', { viewerSocketIds: otherViewerSocketIds })
+
         // If viewer joining, notify the builder to initiate WebRTC
         const room = io.sockets.adapter.rooms.get(sessionId);
         if (room) {
@@ -94,6 +101,19 @@ export function initSessionSocket(io) {
 
     socket.on('webrtc_ice_candidate', ({ targetSocketId, candidate }) => {
       io.to(targetSocketId).emit('webrtc_ice_candidate', { from: socket.id, candidate });
+    });
+
+    // Viewer-to-viewer audio mesh signaling — plain relays between two viewers.
+    socket.on('viewer_webrtc_offer', ({ targetSocketId, offer }) => {
+      io.to(targetSocketId).emit('viewer_webrtc_offer', { from: socket.id, offer });
+    });
+
+    socket.on('viewer_webrtc_answer', ({ targetSocketId, answer }) => {
+      io.to(targetSocketId).emit('viewer_webrtc_answer', { from: socket.id, answer });
+    });
+
+    socket.on('viewer_ice_candidate', ({ targetSocketId, candidate }) => {
+      io.to(targetSocketId).emit('viewer_ice_candidate', { from: socket.id, candidate });
     });
 
 

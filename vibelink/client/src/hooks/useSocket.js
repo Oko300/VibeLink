@@ -12,6 +12,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
   const localStreamRef = useRef(null)   // screen-share stream (builder only)
   const audioStreamRef = useRef(null)   // local microphone stream (anyone who joins with mic)
   const peerConnections = useRef({})
+  const viewerPeerConnections = useRef({})   // audio-only mesh between viewers
   const pendingViewers = useRef([])
   const [messages, setMessages] = useState([])
   const [viewers, setViewers] = useState([])
@@ -122,6 +123,70 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     createPeerConnection(viewerSocketId, socket)
   }
 
+  // --- viewer-to-viewer audio mesh ---
+  // These connections carry AUDIO ONLY. Screen video never travels here — that
+  // stays on the builder<->viewer connections above. Uses explicit offers (no
+  // onnegotiationneeded) plus perfect-negotiation guards for mid-session glare.
+  const createViewerPeerConnection = (peerId, socket) => {
+    if (viewerPeerConnections.current[peerId]) return viewerPeerConnections.current[peerId]
+
+    const pc = new RTCPeerConnection({ iceServers: iceServersRef.current, iceCandidatePoolSize: 10 })
+    viewerPeerConnections.current[peerId] = pc
+    pc._makingOffer = false
+    pc._ignoreOffer = false
+    // Deterministic, opposite politeness on each side via socket-id comparison.
+    const myId = socketRef.current && socketRef.current.id
+    pc._polite = !!myId && myId > peerId
+
+    pc.onicecandidate = (event) => {
+      if (event.candidate) {
+        socket.emit('viewer_ice_candidate', { targetSocketId: peerId, candidate: event.candidate })
+      }
+    }
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('viewer ICE (' + peerId + '):', pc.iceConnectionState)
+    }
+
+    pc.ontrack = (event) => {
+      if (event.track.kind !== 'audio') return   // never render video from a peer viewer
+      const stream = (event.streams && event.streams[0]) || new MediaStream([event.track])
+      addRemoteAudio(peerId, stream)
+    }
+
+    return pc
+  }
+
+  const sendViewerOffer = async (pc, peerId, socket, initial) => {
+    if (!socket || pc._makingOffer || pc.signalingState !== 'stable') return
+    try {
+      pc._makingOffer = true
+      // Initial offer forces an audio m-line even when we have no mic yet, so
+      // we can still receive the peer's audio. Renegotiation offers are plain.
+      const offer = await pc.createOffer(
+        initial ? { offerToReceiveAudio: true, offerToReceiveVideo: false } : {}
+      )
+      await pc.setLocalDescription(offer)
+      socket.emit('viewer_webrtc_offer', { targetSocketId: peerId, offer: pc.localDescription })
+    } catch (e) {
+      console.error('viewer offer error:', e)
+    } finally {
+      pc._makingOffer = false
+    }
+  }
+
+  // Newcomer initiates the audio connection to an existing viewer.
+  const initiateViewerAudio = (peerId, socket) => {
+    const pc = createViewerPeerConnection(peerId, socket)
+    if (audioStreamRef.current) {
+      const track = audioStreamRef.current.getAudioTracks()[0]
+      if (track && !pc.getSenders().some(s => s.track && s.track.kind === 'audio')) {
+        pc.addTrack(track, audioStreamRef.current)
+      }
+    }
+    sendViewerOffer(pc, peerId, socket, true)
+  }
+
   useEffect(() => {
     if (!sessionId) return
 
@@ -174,6 +239,11 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
         if (pc) {
           pc.close()
           delete peerConnections.current[user.socketId]
+        }
+        const vpc = viewerPeerConnections.current[user.socketId]
+        if (vpc) {
+          vpc.close()
+          delete viewerPeerConnections.current[user.socketId]
         }
         removeRemoteAudio(user.socketId)
         setMicStatus(prev => {
@@ -242,6 +312,66 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
       }
     })
 
+    // --- viewer-to-viewer audio mesh signaling ---
+    socket.on('viewers_in_session', ({ viewerSocketIds }) => {
+      if (role === 'builder') return
+      if (!Array.isArray(viewerSocketIds)) return
+      viewerSocketIds.forEach(peerId => {
+        if (!peerId || peerId === socket.id) return
+        initiateViewerAudio(peerId, socket)
+      })
+    })
+
+    socket.on('viewer_webrtc_offer', async ({ from, offer }) => {
+      if (role === 'builder') return
+      let pc = viewerPeerConnections.current[from]
+      if (!pc) pc = createViewerPeerConnection(from, socket)
+
+      const offerCollision = pc._makingOffer || pc.signalingState !== 'stable'
+      pc._ignoreOffer = !pc._polite && offerCollision
+      if (pc._ignoreOffer) return
+
+      try {
+        if (offerCollision) {
+          await pc.setLocalDescription({ type: 'rollback' })
+        }
+        await pc.setRemoteDescription(new RTCSessionDescription(offer))
+        // Attach our mic (if we have one) now that the offer's transceivers
+        // exist, so the answer advertises it without an extra m-line.
+        if (audioStreamRef.current) {
+          const track = audioStreamRef.current.getAudioTracks()[0]
+          if (track && !pc.getSenders().some(s => s.track && s.track.kind === 'audio')) {
+            pc.addTrack(track, audioStreamRef.current)
+          }
+        }
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+        socket.emit('viewer_webrtc_answer', { targetSocketId: from, answer: pc.localDescription })
+      } catch (e) {
+        console.error('viewer offer handling error:', e)
+      }
+    })
+
+    socket.on('viewer_webrtc_answer', async ({ from, answer }) => {
+      const pc = viewerPeerConnections.current[from]
+      if (!pc) return
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer))
+      } catch (e) {
+        console.error('viewer set answer error:', e)
+      }
+    })
+
+    socket.on('viewer_ice_candidate', async ({ from, candidate }) => {
+      const pc = viewerPeerConnections.current[from]
+      if (!pc) return
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate))
+      } catch (e) {
+        if (!pc._ignoreOffer) console.error('viewer ICE candidate error:', e)
+      }
+    })
+
     // --- audio mute indicators ---
     socket.on('audio_mute_status', ({ socketId, muted }) => {
       setMicStatus(prev => ({ ...prev, [socketId]: muted }))
@@ -262,6 +392,8 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     return () => {
       Object.values(peerConnections.current).forEach(pc => pc.close())
       peerConnections.current = {}
+      Object.values(viewerPeerConnections.current).forEach(pc => pc.close())
+      viewerPeerConnections.current = {}
       socket.disconnect()
     }
   }, [sessionId])
@@ -308,6 +440,13 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
       Object.values(peerConnections.current).forEach(pc => {
         const alreadySending = pc.getSenders().some(s => s.track && s.track.kind === 'audio')
         if (!alreadySending && track) pc.addTrack(track, stream)
+      })
+      // Same for the viewer audio mesh, but here we must offer explicitly
+      // (these PCs have no onnegotiationneeded handler).
+      Object.entries(viewerPeerConnections.current).forEach(([peerId, pc]) => {
+        const alreadySending = pc.getSenders().some(s => s.track && s.track.kind === 'audio')
+        if (!alreadySending && track) pc.addTrack(track, stream)
+        sendViewerOffer(pc, peerId, socketRef.current, false)
       })
       if (socketRef.current) {
         pendingViewers.current.forEach((viewerSocketId) => {
