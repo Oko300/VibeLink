@@ -9,7 +9,13 @@ export default function ScreenShare({ shouldStart, onStreamReady, onStreamEnd })
       const startScreenShare = async () => {
         try {
           const stream = await navigator.mediaDevices.getDisplayMedia({
-            video: { cursor: 'always' },
+            video: {
+              cursor: 'always',
+              width: { ideal: 1280, max: 1920 },
+              height: { ideal: 720, max: 1080 },
+              frameRate: { ideal: 15, max: 30 },
+              displaySurface: 'monitor'
+            },
             audio: false,
           });
           currentStream.current = stream;

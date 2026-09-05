@@ -7,6 +7,23 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 // STUN-only is enough for same-network peers but not for cellular viewers.
 const DEFAULT_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }]
 
+// Reorder the video m-line so H.264 is the preferred codec. Many Android/MIUI
+// devices have no hardware VP8/VP9 decoder, so a VP8 stream renders blank;
+// forcing H.264 fixes that.
+// NOTE: real browser SDP uses the profile token "UDP/TLS/RTP/SAVPF" (not the
+// bare "RTP/SAVPF"), so we capture and preserve that token — a naive
+// /RTP\/SAVPF/ pattern never matches modern Chrome and would be a silent no-op.
+function preferH264(sdp) {
+  if (!sdp) return sdp
+  const h264Match = sdp.match(/a=rtpmap:(\d+) H264\/90000/)
+  if (!h264Match) return sdp
+  const h264pt = h264Match[1]
+  return sdp.replace(/m=video (\d+) ([A-Z/]+) ([\d ]+)/, (match, port, proto, payloads) => {
+    const others = payloads.trim().split(' ').filter(p => p && p !== h264pt)
+    return `m=video ${port} ${proto} ${h264pt} ${others.join(' ')}`
+  })
+}
+
 export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
   const socketRef = useRef(null)
   const localStreamRef = useRef(null)   // screen-share stream (builder only)
@@ -86,19 +103,21 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
     }
 
     pc.ontrack = (event) => {
+      console.log('ontrack:', event.track.kind, event.streams?.length)
+      if (event.track.kind === 'video') {
+        // Remote screen video (only viewers receive this). Re-set the stream on
+        // unmute — Android frequently delivers the track muted, then unmutes it
+        // a moment later, which is when the frames actually start flowing.
+        const stream = event.streams?.[0] || new MediaStream([event.track])
+        setRemoteStream(stream)
+        event.track.onunmute = () => setRemoteStream(stream)
+        event.track.onended = () => console.log('video track ended')
+      }
       if (event.track.kind === 'audio') {
-        // Remote microphone — keep it entirely separate from the video element.
-        const stream = (event.streams && event.streams[0]) || new MediaStream([event.track])
+        // Remote microphone — kept entirely separate from the video element and
+        // routed through the shared per-peer audio sink (cleaned up on leave).
+        const stream = event.streams?.[0] || new MediaStream([event.track])
         addRemoteAudio(peerId, stream)
-      } else {
-        // Remote screen video (only viewers receive this).
-        if (event.streams && event.streams[0]) {
-          setRemoteStream(event.streams[0])
-        } else {
-          const newStream = new MediaStream()
-          newStream.addTrack(event.track)
-          setRemoteStream(newStream)
-        }
       }
     }
 
@@ -106,6 +125,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
       try {
         pc._makingOffer = true
         const offer = await pc.createOffer()
+        offer.sdp = preferH264(offer.sdp)
         await pc.setLocalDescription(offer)
         socket.emit('webrtc_offer', { targetSocketId: peerId, offer: pc.localDescription })
       } catch (e) {
@@ -176,6 +196,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
       const offer = await pc.createOffer(
         initial ? { offerToReceiveAudio: true, offerToReceiveVideo: false } : {}
       )
+      offer.sdp = preferH264(offer.sdp)
       await pc.setLocalDescription(offer)
       socket.emit('viewer_webrtc_offer', { targetSocketId: peerId, offer: pc.localDescription })
     } catch (e) {
@@ -311,6 +332,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
         }
         await pc.setRemoteDescription(new RTCSessionDescription(offer))
         const answer = await pc.createAnswer()
+        answer.sdp = preferH264(answer.sdp)
         await pc.setLocalDescription(answer)
         socket.emit('webrtc_answer', { targetSocketId: from, answer: pc.localDescription })
       } catch (e) {
@@ -371,6 +393,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
           }
         }
         const answer = await pc.createAnswer()
+        answer.sdp = preferH264(answer.sdp)
         await pc.setLocalDescription(answer)
         socket.emit('viewer_webrtc_answer', { targetSocketId: from, answer: pc.localDescription })
       } catch (e) {
@@ -464,8 +487,16 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
       // Add the mic track to every existing peer connection (triggers
       // renegotiation on each), and pick up any viewers that were waiting.
       Object.values(peerConnections.current).forEach(pc => {
-        const alreadySending = pc.getSenders().some(s => s.track && s.track.kind === 'audio')
-        if (!alreadySending && track) pc.addTrack(track, stream)
+        // Android needs a short delay before the mic track is attached, or the
+        // renegotiated audio m-line can come up dead. Guard against dupes.
+        setTimeout(() => {
+          try {
+            const hasAudio = pc.getSenders().some(s => s.track && s.track.kind === 'audio')
+            if (!hasAudio && track) pc.addTrack(track, stream)
+          } catch (e) {
+            console.warn('addTrack error:', e)
+          }
+        }, 500)
       })
       // Same for the viewer audio mesh, but here we must offer explicitly
       // (these PCs have no onnegotiationneeded handler).

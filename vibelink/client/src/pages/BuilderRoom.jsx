@@ -86,6 +86,15 @@ export default function BuilderRoom() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', backgroundColor: '#0d0d0d', color: 'white' }}>
+      {/MiuiBrowser|XiaoMi\/MiuiBrowser/i.test(navigator.userAgent) && (
+        <div style={{
+          background: '#dc2626', color: 'white', padding: '12px 16px',
+          textAlign: 'center', fontSize: '14px', fontWeight: '500',
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999
+        }}>
+          ⚠️ MIUI Browser detected. Please open this link in <strong>Chrome</strong> for video to work.
+        </div>
+      )}
       {showModal && (
         <InstructionModal
           onConfirm={handleConfirm}

@@ -66,19 +66,23 @@ export default function ViewerRoom() {
 
   useEffect(() => {
     if (remoteStream && videoRef.current) {
-      console.log('Setting srcObject, tracks:', remoteStream.getTracks());
-      videoRef.current.srcObject = remoteStream;
-      videoRef.current.muted = true;
-      videoRef.current.playsInline = true;
-      videoRef.current.autoplay = true;
-      setStreamReceived(true);
-      videoRef.current.play().then(() => {
-        console.log('Video playing successfully');
-        setNeedsTap(false);
-      }).catch((err) => {
-        console.log('Autoplay blocked:', err);
-        setNeedsTap(true);
-      });
+      const video = videoRef.current;
+      video.srcObject = null; // reset first
+      setTimeout(() => {
+        if (!videoRef.current) return;
+        videoRef.current.srcObject = remoteStream;
+        videoRef.current.muted = true;
+        videoRef.current.playsInline = true;
+        videoRef.current.volume = 0;
+        setStreamReceived(true);
+        setTimeout(() => {
+          videoRef.current?.play().then(() => {
+            setNeedsTap(false);
+          }).catch(() => {
+            setNeedsTap(true);
+          });
+        }, 300);
+      }, 100);
     }
   }, [remoteStream]);
 
@@ -121,6 +125,15 @@ export default function ViewerRoom() {
 
   return (
     <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', height: '100vh', background: '#1a202c', color: 'white' }}>
+      {/MiuiBrowser|XiaoMi\/MiuiBrowser/i.test(navigator.userAgent) && (
+        <div style={{
+          background: '#dc2626', color: 'white', padding: '12px 16px',
+          textAlign: 'center', fontSize: '14px', fontWeight: '500',
+          position: 'fixed', top: 0, left: 0, right: 0, zIndex: 9999
+        }}>
+          ⚠️ MIUI Browser detected. Please open this link in <strong>Chrome</strong> for video to work.
+        </div>
+      )}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem', width: isMobile ? '100%' : 'auto', minHeight: isMobile ? '240px' : 'auto', height: isMobile ? '50vh' : 'auto' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>VibeLink</h1>
         <p style={{ color: '#ef4444', marginBottom: '1rem' }}>🔴 Live</p>
