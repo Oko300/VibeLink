@@ -6,7 +6,7 @@ export default function MicControl({ micActive, micMuted, error, onJoin, onToggl
     alignItems: 'center',
     gap: '0.5rem',
     border: 'none',
-    borderRadius: '9999px',
+    borderRadius: 'var(--radius-lg)',
     padding: '0.55rem 1.1rem',
     fontSize: '0.95rem',
     fontWeight: 'bold',
@@ -18,7 +18,7 @@ export default function MicControl({ micActive, micMuted, error, onJoin, onToggl
       {!micActive && (
         <button
           onClick={onJoin}
-          style={{ ...pill, backgroundColor: '#1f2937', color: 'white', border: '1px solid #374151' }}
+          style={{ ...pill, backgroundColor: 'var(--clr-primary)', color: 'var(--clr-text-inverted)', border: 'none' }}
         >
           🎙️ Join with mic
         </button>
@@ -27,14 +27,14 @@ export default function MicControl({ micActive, micMuted, error, onJoin, onToggl
       {micActive && (
         <button
           onClick={onToggle}
-          style={{ ...pill, backgroundColor: micMuted ? '#374151' : '#065f46', color: 'white' }}
+          style={{ ...pill, backgroundColor: micMuted ? 'var(--clr-secondary)' : 'var(--clr-primary)', color: 'var(--clr-text-inverted)' }}
         >
           {micMuted ? '🔇 Muted — tap to talk' : '🎙️ Mic live — tap to mute'}
         </button>
       )}
 
       {error && (
-        <span style={{ color: '#f87171', fontSize: '0.8rem', textAlign: 'center' }}>
+        <span style={{ color: 'var(--clr-error)', fontSize: '0.8rem', textAlign: 'center' }}>
           Mic access denied — you can still watch and use chat
         </span>
       )}

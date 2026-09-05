@@ -137,7 +137,7 @@ export default function ViewerRoom() {
       )}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '1rem', width: isMobile ? '100%' : 'auto', minHeight: isMobile ? '240px' : 'auto', height: isMobile ? '50vh' : 'auto' }}>
         <h1 style={{ fontSize: '2rem', fontWeight: 'bold', marginBottom: '1rem' }}>VibeLink</h1>
-        <p style={{ color: '#ef4444', marginBottom: '1rem' }}>🔴 Live</p>
+        <p style={{ color: '#2dd4bf', marginBottom: '1rem' }}>🔴 Live</p>
         <div style={{ width: '100%', maxWidth: isMobile ? '100%' : '800px', aspectRatio: '16/9', background: 'black', borderRadius: '8px', overflow: 'hidden', position: 'relative' }}>
           <video
             ref={videoRef}

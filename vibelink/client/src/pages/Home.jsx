@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const FEATURES = [
-  { icon: '🖥', title: 'Live Screen Share', text: 'They see exactly what you see' },
-  { icon: '🎙', title: 'Voice + Chat', text: 'Talk and type in real time' },
-  { icon: '🛡', title: 'Private & Ephemeral', text: 'Link dies when you end the session' },
+  { icon: '🖥', title: 'Live Screen Share', text: 'They see exactly what you see — VS Code, Claude, everything' },
+  { icon: '🎙', title: 'Voice + Chat', text: 'Talk and type in real time while the AI works' },
+  { icon: '🛡', title: 'Private & Ephemeral', text: 'Link dies the moment you end. Nothing is stored.' },
 ];
 
 export default function Home() {
@@ -37,144 +37,60 @@ export default function Home() {
   };
 
   return (
-    <div style={styles.container}>
-      <span style={styles.badge}>Built for Commons · VibeFi Hackathon</span>
+    <div style={{ background: '#0a0a0a', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '40px 20px', position: 'relative', overflow: 'hidden' }}>
+      {/* Subtle background glow */}
+      <div style={{ position: 'absolute', top: '20%', left: '50%', transform: 'translateX(-50%)', width: '600px', height: '300px', background: 'radial-gradient(ellipse, rgba(45,212,191,0.06) 0%, transparent 70%)', pointerEvents: 'none' }}></div>
+      {/* Badge */}
+      <div style={{ border: '1px solid rgba(45,212,191,0.3)', borderRadius: '20px', padding: '4px 14px', fontSize: '12px', color: '#2dd4bf', marginBottom: '32px', letterSpacing: '0.05em' }}>
+        Built for Commons / VibeFi Hackathon
+      </div>
 
-      <h1 style={styles.heading}>VibeLink</h1>
-      <p style={styles.tagline}>Drop a link. Let other builders watch your AI build live.</p>
-      <p style={styles.subtext}>
-        Start a live screen share of your coding environment — Claude Code, Cursor,
-        VS Code, anything. Share the link in Commons chat. Other builders join
-        instantly and give real advice while the AI works.
+      {/* Main heading */}
+      <h1 style={{ fontFamily: 'Georgia, serif', fontSize: 'clamp(40px,8vw,80px)', fontWeight: 400, color: '#f5f0e8', textAlign: 'center', lineHeight: 1.1, marginBottom: '16px', maxWidth: '700px' }}>
+        Build live. Let builders in.
+      </h1>
+
+      {/* Subtext */}
+      <p style={{ fontSize: '18px', color: '#888888', textAlign: 'center', maxWidth: '480px', lineHeight: 1.6, marginBottom: '48px' }}>
+        Share your screen live while the AI builds. Drop a link in Commons chat. Other builders watch, talk, and help — in real time.
       </p>
 
       <button
         onClick={startSession}
         disabled={loading}
-        style={{ ...styles.cta, ...(loading ? styles.ctaDisabled : {}) }}
-        onMouseOver={(e) => { if (!loading) e.currentTarget.style.backgroundColor = '#4f46e5'; }}
-        onMouseOut={(e) => { e.currentTarget.style.backgroundColor = loading ? '#3730a3' : '#6366f1'; }}
+        style={{
+          background: loading ? '#161616' : '#2dd4bf',
+          color: loading ? '#888888' : '#0a0a0a',
+          border: 'none',
+          borderRadius: '12px',
+          padding: '16px 40px',
+          fontSize: '16px',
+          fontWeight: 600,
+          cursor: 'pointer',
+          marginBottom: '64px'
+        }}
       >
-        {loading ? 'Starting session…' : 'Start a Live Session'}
+        {loading ? 'Starting...' : '→ Start Live Session'}
       </button>
-      {error && <p style={styles.errorText}>{error}</p>}
+      {error && <p style={{ color: '#ef4444', marginTop: '16px' }}>{error}</p>}
 
-      <div style={styles.features}>
+      {/* Feature Cards Grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px,1fr))', gap: '16px', maxWidth: '660px', width: '100%', marginBottom: '64px' }}>
         {FEATURES.map((f) => (
-          <div key={f.title} style={styles.pill}>
-            <div style={styles.pillIcon}>{f.icon}</div>
-            <div style={styles.pillTitle}>{f.title}</div>
-            <div style={styles.pillText}>{f.text}</div>
+          <div key={f.title} style={{ background: '#161616', border: '1px solid #222222', borderRadius: '16px', padding: '24px 20px' }}>
+            <div style={{ fontSize: '28px', marginBottom: '12px' }}>{f.icon}</div>
+            <div style={{ fontSize: '14px', fontWeight: 600, color: '#f5f0e8', marginBottom: '6px' }}>{f.title}</div>
+            <div style={{ fontSize: '13px', color: '#888888', lineHeight: 1.5 }}>{f.text}</div>
           </div>
         ))}
       </div>
 
-      <footer style={styles.footer}>
+      {/* Footer */}
+      <footer style={{ fontSize: '13px', color: '#444444', textAlign: 'center' }}>
         Built for the Commons community · Powered by builders helping builders
       </footer>
     </div>
   );
 }
 
-const styles = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    backgroundColor: '#0d0d0d',
-    color: '#ffffff',
-    fontFamily: 'Arial, sans-serif',
-    textAlign: 'center',
-    padding: '48px 20px',
-    boxSizing: 'border-box',
-  },
-  badge: {
-    fontSize: '0.8rem',
-    letterSpacing: '0.05em',
-    color: '#a5b4fc',
-    background: 'rgba(99, 102, 241, 0.12)',
-    border: '1px solid rgba(99, 102, 241, 0.35)',
-    borderRadius: '999px',
-    padding: '6px 14px',
-    marginBottom: '28px',
-  },
-  heading: {
-    fontSize: 'clamp(3rem, 9vw, 5rem)',
-    fontWeight: 'bold',
-    margin: '0 0 12px',
-    lineHeight: 1.05,
-  },
-  tagline: {
-    fontSize: 'clamp(1.15rem, 3.5vw, 1.6rem)',
-    fontWeight: 600,
-    margin: '0 0 18px',
-    maxWidth: '640px',
-  },
-  subtext: {
-    fontSize: '1rem',
-    lineHeight: 1.6,
-    color: '#9ca3af',
-    margin: '0 0 36px',
-    maxWidth: '620px',
-  },
-  cta: {
-    padding: '16px 40px',
-    fontSize: '1.15rem',
-    backgroundColor: '#6366f1',
-    color: '#ffffff',
-    border: 'none',
-    borderRadius: '10px',
-    cursor: 'pointer',
-    fontWeight: 'bold',
-    boxShadow: '0 8px 24px rgba(99, 102, 241, 0.35)',
-    transition: 'background-color 0.2s ease',
-  },
-  ctaDisabled: {
-    backgroundColor: '#3730a3',
-    cursor: 'not-allowed',
-    boxShadow: 'none',
-  },
-  errorText: {
-    color: '#f87171',
-    marginTop: '16px',
-  },
-  features: {
-    display: 'flex',
-    flexWrap: 'wrap',
-    justifyContent: 'center',
-    gap: '16px',
-    margin: '56px 0 0',
-    maxWidth: '900px',
-    width: '100%',
-  },
-  pill: {
-    flex: '1 1 240px',
-    maxWidth: '280px',
-    backgroundColor: '#1a1a1a',
-    border: '1px solid #333',
-    borderRadius: '14px',
-    padding: '22px 20px',
-  },
-  pillIcon: {
-    fontSize: '1.8rem',
-    marginBottom: '10px',
-  },
-  pillTitle: {
-    fontSize: '1.05rem',
-    fontWeight: 'bold',
-    marginBottom: '6px',
-    color: '#ffffff',
-  },
-  pillText: {
-    fontSize: '0.92rem',
-    color: '#9ca3af',
-    lineHeight: 1.5,
-  },
-  footer: {
-    marginTop: '56px',
-    fontSize: '0.85rem',
-    color: '#6b7280',
-  },
-};
+

@@ -1,0 +1,22 @@
+:root {
+  --bg-primary: #0a0a0a;
+  --bg-secondary: #111111;
+  --bg-card: #161616;
+  --accent: #2dd4bf;
+  --accent-dark: #14b8a4;
+  --accent-glow: rgba(45, 212, 191, 0.15);
+  --text-primary: #f5f0e8;
+  --text-secondary: #888888;
+  --text-muted: #444444;
+  --border: #222222;
+  --border-accent: rgba(45, 212, 191, 0.3);
+  --red: #ef4444;
+  --font-display: 'Georgia', 'Times New Roman', serif;
+  --font-body: 'Inter', -apple-system, sans-serif;
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-body);
+}

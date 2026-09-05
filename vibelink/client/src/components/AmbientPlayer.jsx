@@ -146,7 +146,7 @@ export default function AmbientPlayer({
         />
         <button onClick={skip} style={styles.iconBtn} title="Next track" aria-label="Next track">⏭</button>
       </div>
-      <div style={{ fontSize: '8px', color: '#444', textAlign: 'center', marginTop: '2px' }}>
+      <div style={{ fontSize: '8px', color: 'var(--clr-text-dim)', textAlign: 'center', marginTop: '2px' }}>
         Music: Kevin MacLeod (incompetech.com) CC BY 4.0
       </div>
     </div>
@@ -156,7 +156,7 @@ export default function AmbientPlayer({
 const styles = {
   wrap: {
     position: 'fixed',
-    bottom: '84px',   // clears the chat input on both desktop and mobile
+    bottom: '16px',   // clears the chat input on both desktop and mobile
     right: '16px',
     zIndex: 10000,
     display: 'flex',
@@ -166,7 +166,8 @@ const styles = {
   vibeLabel: {
     fontSize: '10px',
     fontWeight: 'bold',
-    color: '#a5b4fc',
+
+    color: 'var(--clr-primary)',
     marginBottom: '3px',
     letterSpacing: '0.02em',
   },
@@ -174,20 +175,20 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
-    background: '#1a1a2e',
-    border: '1px solid #2a2a44',
+    background: 'var(--clr-bg-alt)',
+    border: '1px solid var(--clr-border)',
     borderRadius: '999px',
     padding: '6px 12px',
-    boxShadow: '0 4px 14px rgba(0, 0, 0, 0.4)',
-    fontFamily: 'Arial, sans-serif',
+    boxShadow: 'var(--shadow-lg)',
+    fontFamily: 'var(--font-sans)',
     fontSize: '12px',
-    color: '#e0e0e0',
+    color: 'var(--clr-text)',
     userSelect: 'none',
   },
   iconBtn: {
     background: 'transparent',
     border: 'none',
-    color: '#e0e0e0',
+    color: 'var(--clr-text)',
     cursor: 'pointer',
     fontSize: '14px',
     lineHeight: 1,
@@ -195,13 +196,13 @@ const styles = {
   },
   label: {
     whiteSpace: 'nowrap',
-    color: '#a5b4fc',
+    color: 'var(--clr-primary)',
     fontSize: '12px',
   },
   slider: {
     width: '70px',
     height: '4px',
-    accentColor: '#6366f1',
+    accentColor: 'var(--clr-primary)',
     cursor: 'pointer',
   },
 }

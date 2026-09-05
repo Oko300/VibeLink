@@ -104,15 +104,15 @@ export default function BuilderRoom() {
       )}
 
       {/* Top bar */}
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', backgroundColor: '#111', boxShadow: '0 2px 4px rgba(0, 0, 0, 0.2)' }}>
-        <h1 style={{ fontSize: '1.25rem', fontWeight: 'bold' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '1rem', background: '#111111', borderBottom: '1px solid #222222' }}>
+        <h1 style={{ fontFamily: 'Georgia, serif', color: '#f5f0e8', fontSize: '20px' }}>
           VibeLink <span style={{ color: '#aaa', fontSize: '1rem' }}>/ {sessionId}</span>
         </h1>
         <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
           {isLive && !isPaused && (
             <button
               onClick={handlePause}
-              style={{ backgroundColor: '#f59e0b', color: 'white', fontWeight: 'bold', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}
+              style={{ background: '#161616', border: '1px solid #222222', color: '#f5f0e8', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
             >
               ⏸ Pause
             </button>
@@ -120,14 +120,14 @@ export default function BuilderRoom() {
           {isLive && isPaused && (
             <button
               onClick={handleResume}
-              style={{ backgroundColor: '#22c55e', color: 'white', fontWeight: 'bold', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}
+              style={{ background: '#161616', border: '1px solid #222222', color: '#f5f0e8', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
             >
               ▶ Resume
             </button>
           )}
           <button
             onClick={handleEndSession}
-            style={{ backgroundColor: '#ef4444', color: 'white', fontWeight: 'bold', padding: '0.5rem 1rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer' }}
+            style={{ background: '#ef4444', color: 'white', border: 'none', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}
           >
             End Session
           </button>
