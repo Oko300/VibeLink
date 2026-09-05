@@ -1,10 +1,19 @@
 import { useEffect, useRef, useState } from 'react'
 
-// Royalty-free ambient/lofi tracks (direct MP3s, no API key needed).
+// Royalty-free ambient/lofi tracks by Kevin MacLeod (incompetech.com), CC BY 4.0.
 const TRACKS = [
-  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
-  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-2.mp3',
-  'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-3.mp3',
+  {
+    name: 'Chill Lofi Vibes 1',
+    url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Relaxing%20Piano%20Music.mp3'
+  },
+  {
+    name: 'Chill Lofi Vibes 2',
+    url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Carefree.mp3'
+  },
+  {
+    name: 'Chill Lofi Vibes 3',
+    url: 'https://incompetech.com/music/royalty-free/mp3-royaltyfree/Comfortable%20Mystery.mp3'
+  }
 ]
 
 const VOLUME_KEY = 'vibelink_music_volume'
@@ -67,44 +76,54 @@ export default function AmbientPlayer() {
   if (hidden) return null
 
   return (
-    <div style={styles.bar}>
-      <audio
-        ref={audioRef}
-        src={TRACKS[trackIndex]}
-        onEnded={handleEnded}
-        onError={handleError}
-        preload="none"
-      />
-      <button
-        onClick={togglePlay}
-        style={styles.iconBtn}
-        title={isPlaying ? 'Pause music' : 'Play music'}
-        aria-label={isPlaying ? 'Pause music' : 'Play music'}
-      >
-        {isPlaying ? '⏸' : '🎵'}
-      </button>
-      <span style={styles.label}>Lofi Vibes {trackIndex + 1}/{TRACKS.length}</span>
-      <input
-        type="range"
-        min="0"
-        max="100"
-        value={volume}
-        onChange={handleVolume}
-        style={styles.slider}
-        title="Music volume"
-        aria-label="Music volume"
-      />
-      <button onClick={skip} style={styles.iconBtn} title="Next track" aria-label="Next track">⏭</button>
+    <div style={styles.wrap}>
+      <div style={styles.bar}>
+        <audio
+          ref={audioRef}
+          src={TRACKS[trackIndex].url}
+          onEnded={handleEnded}
+          onError={handleError}
+          preload="none"
+        />
+        <button
+          onClick={togglePlay}
+          style={styles.iconBtn}
+          title={isPlaying ? 'Pause music' : 'Play music'}
+          aria-label={isPlaying ? 'Pause music' : 'Play music'}
+        >
+          {isPlaying ? '⏸' : '🎵'}
+        </button>
+        <span style={styles.label}>Lofi Vibes {trackIndex + 1}/{TRACKS.length}</span>
+        <input
+          type="range"
+          min="0"
+          max="100"
+          value={volume}
+          onChange={handleVolume}
+          style={styles.slider}
+          title="Music volume"
+          aria-label="Music volume"
+        />
+        <button onClick={skip} style={styles.iconBtn} title="Next track" aria-label="Next track">⏭</button>
+      </div>
+      <div style={{ fontSize: '8px', color: '#444', textAlign: 'center', marginTop: '2px' }}>
+        Music: Kevin MacLeod (incompetech.com) CC BY 4.0
+      </div>
     </div>
   )
 }
 
 const styles = {
-  bar: {
+  wrap: {
     position: 'fixed',
     bottom: '84px',   // clears the chat input on both desktop and mobile
     right: '16px',
     zIndex: 10000,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'flex-end',
+  },
+  bar: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
