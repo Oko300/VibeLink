@@ -7,6 +7,7 @@ import ViewerList from '../components/ViewerList'
 import MicControl from '../components/MicControl'
 import RemoteAudio from '../components/RemoteAudio'
 import AmbientPlayer from '../components/AmbientPlayer'
+import HelpPanel from '../components/HelpPanel';
 
 import { useSocket } from '../hooks/useSocket'
 import { useAuth } from '../hooks/useAuth'
@@ -217,6 +218,7 @@ export default function BuilderRoom() {
         onVolumeChange={hostSetMusicVolume}
         onPlayingChange={hostSetMusicPlaying}
       />
+      <HelpPanel />
     </div>
   )
 }

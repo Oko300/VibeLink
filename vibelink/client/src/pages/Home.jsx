@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import HelpPanel from '../components/HelpPanel';
 
 const FEATURES = [
   { icon: '🖥', title: 'Live Screen Share', text: 'They see exactly what you see. VS Code, Claude, everything.' },
@@ -88,6 +89,7 @@ export default function Home() {
       {/* Footer */}
       <footer style={{ fontSize: '13px', color: '#444444', textAlign: 'center' }}>
         Built for the Commons community. Powered by builders helping builders.
+      <HelpPanel />
       </footer>
     </div>
   );

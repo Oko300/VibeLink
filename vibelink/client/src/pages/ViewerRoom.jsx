@@ -7,6 +7,7 @@ import SessionChat from '../components/SessionChat'
 import MicControl from '../components/MicControl'
 import RemoteAudio from '../components/RemoteAudio'
 import AmbientPlayer from '../components/AmbientPlayer'
+import HelpPanel from '../components/HelpPanel';
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -196,6 +197,7 @@ export default function ViewerRoom() {
         remoteMusicVolume={remoteMusicVolume}
         remoteMusicState={remoteMusicState}
       />
+      <HelpPanel />
     </div>
   )
 }
