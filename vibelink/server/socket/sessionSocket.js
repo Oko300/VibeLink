@@ -97,6 +97,19 @@ export function initSessionSocket(io) {
     });
 
 
+    // Audio: broadcast a participant's mute status so everyone updates their indicator
+    socket.on('audio_mute_status', ({ sessionId, muted }) => {
+      if (!sessionId) return
+      io.to(sessionId).emit('audio_mute_status', { socketId: socket.id, muted: !!muted })
+    });
+
+    // Audio: host force-mutes a specific viewer (only the session builder may do this)
+    socket.on('host_mute_viewer', ({ targetSocketId }) => {
+      if (socket.data.role !== 'builder') return
+      io.to(targetSocketId).emit('you_were_muted')
+    });
+
+
     // Handle disconnect
     socket.on('disconnect', () => {
       const { sessionId, displayName, role } = socket.data

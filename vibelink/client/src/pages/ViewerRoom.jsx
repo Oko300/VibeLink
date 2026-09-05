@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { useSocket } from '../hooks/useSocket'
 import JoinScreen from '../components/JoinScreen'
 import SessionChat from '../components/SessionChat'
+import MicControl from '../components/MicControl'
+import RemoteAudio from '../components/RemoteAudio'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -15,6 +17,7 @@ export default function ViewerRoom() {
   const [displayName, setDisplayName] = useState('Guest')
   const [needsTap, setNeedsTap] = useState(false)
   const [streamReceived, setStreamReceived] = useState(false)
+  const [micError, setMicError] = useState(false)
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768)
 
   useEffect(() => {
@@ -25,12 +28,21 @@ export default function ViewerRoom() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
-  const { messages, viewers, connected, sendMessage, remoteStream, sessionPaused } = useSocket(
+  const {
+    messages, viewers, connected, sendMessage, remoteStream, sessionPaused,
+    getUserAudio, muteAudio, micActive, micMuted, mutedByHost, remoteAudioStreams
+  } = useSocket(
     sessionId,
     displayName,
     'viewer',
     hasJoined
   )
+
+  const handleJoinMic = async () => {
+    setMicError(false)
+    const result = await getUserAudio()
+    if (!result.ok) setMicError(true)
+  }
 
   useEffect(() => {
     fetch(API_URL + '/api/session/' + sessionId + '/status')
@@ -113,6 +125,17 @@ export default function ViewerRoom() {
             </div>
           )}
         </div>
+
+        {/* Mic control bar — bottom of the video column, above the chat */}
+        <div style={{ marginTop: '1rem' }}>
+          <MicControl
+            micActive={micActive}
+            micMuted={micMuted}
+            error={micError}
+            onJoin={handleJoinMic}
+            onToggle={() => muteAudio(!micMuted)}
+          />
+        </div>
       </div>
       <SessionChat
         sessionId={sessionId}
@@ -122,6 +145,17 @@ export default function ViewerRoom() {
         currentDisplayName={'Guest'}
         currentUserRole={'viewer'}
       />
+
+      {mutedByHost && (
+        <div style={{ position: 'fixed', top: '1rem', left: '50%', transform: 'translateX(-50%)', background: '#dc2626', color: 'white', padding: '0.6rem 1.2rem', borderRadius: '8px', fontWeight: 'bold', zIndex: 9999, boxShadow: '0 4px 12px rgba(0,0,0,0.4)' }}>
+          🔇 You were muted by the host
+        </div>
+      )}
+
+      {/* Hidden sinks that play the builder's (and any peer's) microphone */}
+      {remoteAudioStreams.map((a) => (
+        <RemoteAudio key={a.id} stream={a.stream} />
+      ))}
     </div>
   )
 }

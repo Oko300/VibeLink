@@ -7,17 +7,27 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 // STUN-only is enough for same-network peers but not for cellular viewers.
 const DEFAULT_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }]
 
-export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = () => {}) {
+export function useSocket(sessionId, displayName, role, shouldJoin) {
   const socketRef = useRef(null)
-  const localStreamRef = useRef(null)
+  const localStreamRef = useRef(null)   // screen-share stream (builder only)
+  const audioStreamRef = useRef(null)   // local microphone stream (anyone who joins with mic)
   const peerConnections = useRef({})
+  const pendingViewers = useRef([])
   const [messages, setMessages] = useState([])
   const [viewers, setViewers] = useState([])
   const [connected, setConnected] = useState(false)
-  const [remoteStream, setRemoteStream] = useState(null)
+  const [remoteStream, setRemoteStream] = useState(null)   // remote screen video (viewer side)
   const [sessionPaused, setSessionPaused] = useState(false)
-  const pendingViewers = useRef([])
-  const [iceServers, setIceServers] = useState(DEFAULT_ICE_SERVERS)
+
+  // --- audio state ---
+  // Remote microphone streams, one per peer: [{ id: socketId, stream }]
+  const [remoteAudioStreams, setRemoteAudioStreams] = useState([])
+  // Mic mute state of every participant we know about: { socketId: muted<boolean> }
+  const [micStatus, setMicStatus] = useState({})
+  const [micActive, setMicActive] = useState(false)   // have we captured a local mic?
+  const [micMuted, setMicMuted] = useState(false)     // is our local mic muted?
+  const [mutedByHost, setMutedByHost] = useState(false)
+
   // Ref mirror so the socket-event closures (registered once per session) always
   // read the freshest TURN credentials rather than the captured default.
   const iceServersRef = useRef(DEFAULT_ICE_SERVERS)
@@ -27,43 +37,93 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
       .then(r => r.json())
       .then(servers => {
         if (Array.isArray(servers) && servers.length) {
-          setIceServers(servers)
           iceServersRef.current = servers
         }
       })
       .catch(() => console.warn('Could not fetch ICE servers, using STUN only'))
   }, [])
 
-  // Helper function for WebRTC offer initiation
-  const initiateWebRTC = async (viewerSocketId, socket) => {
-    console.log("initiateWebRTC called for viewer:", viewerSocketId, "localStream ready:", !!localStreamRef.current)
-    if (!localStreamRef.current) return
+  // --- remote audio bookkeeping ---
+  const addRemoteAudio = (id, stream) => {
+    setRemoteAudioStreams(prev => [...prev.filter(a => a.id !== id), { id, stream }])
+  }
+  const removeRemoteAudio = (id) => {
+    setRemoteAudioStreams(prev => prev.filter(a => a.id !== id))
+  }
+
+  // Create (or return existing) RTCPeerConnection for a peer. Uses the WebRTC
+  // "perfect negotiation" pattern so either side can add tracks (e.g. turn on
+  // their mic) and renegotiate without breaking the existing screen share.
+  // The builder is the impolite peer; viewers are polite.
+  const createPeerConnection = (peerId, socket) => {
+    if (peerConnections.current[peerId]) return peerConnections.current[peerId]
+
     const pc = new RTCPeerConnection({ iceServers: iceServersRef.current, iceCandidatePoolSize: 10 })
-    peerConnections.current[viewerSocketId] = pc
-    localStreamRef.current.getTracks().forEach(track => {
-      pc.addTrack(track, localStreamRef.current)
-    })
+    peerConnections.current[peerId] = pc
+    pc._makingOffer = false
+    pc._ignoreOffer = false
+    pc._polite = role !== 'builder'
+
     pc.onicecandidate = (event) => {
       if (event.candidate) {
-        socket.emit('webrtc_ice_candidate', { targetSocketId: viewerSocketId, candidate: event.candidate })
+        socket.emit('webrtc_ice_candidate', { targetSocketId: peerId, candidate: event.candidate })
       }
     }
-    try {
-      const offer = await pc.createOffer({
-        offerToReceiveVideo: true,
-        offerToReceiveAudio: false
-      })
-      await pc.setLocalDescription(offer)
-      socket.emit('webrtc_offer', { targetSocketId: viewerSocketId, offer })
-    } catch (e) {
-      console.error('WebRTC offer error:', e)
+
+    pc.oniceconnectionstatechange = () => {
+      console.log('ICE state (' + peerId + '):', pc.iceConnectionState)
     }
+
+    pc.ontrack = (event) => {
+      if (event.track.kind === 'audio') {
+        // Remote microphone — keep it entirely separate from the video element.
+        const stream = (event.streams && event.streams[0]) || new MediaStream([event.track])
+        addRemoteAudio(peerId, stream)
+      } else {
+        // Remote screen video (only viewers receive this).
+        if (event.streams && event.streams[0]) {
+          setRemoteStream(event.streams[0])
+        } else {
+          const newStream = new MediaStream()
+          newStream.addTrack(event.track)
+          setRemoteStream(newStream)
+        }
+      }
+    }
+
+    pc.onnegotiationneeded = async () => {
+      try {
+        pc._makingOffer = true
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        socket.emit('webrtc_offer', { targetSocketId: peerId, offer: pc.localDescription })
+      } catch (e) {
+        console.error('negotiation error:', e)
+      } finally {
+        pc._makingOffer = false
+      }
+    }
+
+    // Include whatever local media we already have. Adding tracks fires
+    // onnegotiationneeded, which produces the offer for us.
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach(track => pc.addTrack(track, localStreamRef.current))
+    }
+    if (audioStreamRef.current) {
+      audioStreamRef.current.getAudioTracks().forEach(track => pc.addTrack(track, audioStreamRef.current))
+    }
+
+    return pc
+  }
+
+  // Builder initiates a connection to a viewer once media is available.
+  const initiateWebRTC = (viewerSocketId, socket) => {
+    if (!localStreamRef.current && !audioStreamRef.current) return
+    createPeerConnection(viewerSocketId, socket)
   }
 
   useEffect(() => {
     if (!sessionId) return
-
-
 
     const socket = io(SOCKET_URL, {
       transports: ['polling', 'websocket'],
@@ -87,7 +147,6 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
     })
 
     socket.on('viewer_list', (list) => {
-      console.log('viewer list updated:', list)
       setViewers(list || [])
     })
 
@@ -109,6 +168,20 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
         message: (user.displayName || 'Someone') + ' left the session',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }])
+      // Tear down that peer's connection and audio so nothing lingers.
+      if (user && user.socketId) {
+        const pc = peerConnections.current[user.socketId]
+        if (pc) {
+          pc.close()
+          delete peerConnections.current[user.socketId]
+        }
+        removeRemoteAudio(user.socketId)
+        setMicStatus(prev => {
+          const next = { ...prev }
+          delete next[user.socketId]
+          return next
+        })
+      }
     })
 
     socket.on('kicked', () => {
@@ -120,79 +193,70 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
     socket.on('session_resumed', () => setSessionPaused(false))
 
     socket.on('viewer_joined_webrtc', async ({ viewerSocketId }) => {
-      if (!localStreamRef.current) {
+      if (!localStreamRef.current && !audioStreamRef.current) {
         pendingViewers.current.push(viewerSocketId)
         return
       }
-      await initiateWebRTC(viewerSocketId, socket)
+      initiateWebRTC(viewerSocketId, socket)
     })
 
+    // --- WebRTC signaling (perfect negotiation) ---
     socket.on('webrtc_offer', async ({ from, offer }) => {
-      addDebug('offer received');
-      const pc = new RTCPeerConnection({ iceServers: iceServersRef.current, iceCandidatePoolSize: 10 })
-      peerConnections.current[from] = pc
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          addDebug('local cand: ' + event.candidate.type);
-          socket.emit('webrtc_ice_candidate', { targetSocketId: from, candidate: event.candidate })
-        }
-      }
-      pc.oniceconnectionstatechange = () => {
-        addDebug('ICE state: ' + pc.iceConnectionState);
-      }
-      pc.ontrack = (event) => {
-        console.log('VIEWER ontrack fired - track:', event.track.kind, 'streams:', event.streams.length);
-        addDebug('ontrack fired: ' + event.track.kind);
-        console.log("ontrack fired - streams:", event.streams.length, "track kind:", event.track.kind)
-        console.log('ontrack fired, streams:', event.streams)
-        console.log('track kind:', event.track.kind)
-        if (event.streams && event.streams[0]) {
-          console.log('Setting remote stream')
-          console.log("setRemoteStream called with:", event.streams[0])
-          setRemoteStream(event.streams[0])
-          addDebug('remoteStream set');
-        } else {
-          console.log('No streams in ontrack event, creating new MediaStream')
-          const newStream = new MediaStream()
-          newStream.addTrack(event.track)
-          addDebug('remoteStream set');
-          setRemoteStream(newStream)
-          console.log("setRemoteStream called with:", newStream)
-        }
-      }
+      let pc = peerConnections.current[from]
+      if (!pc) pc = createPeerConnection(from, socket)
+
+      const offerCollision = pc._makingOffer || pc.signalingState !== 'stable'
+      pc._ignoreOffer = !pc._polite && offerCollision
+      if (pc._ignoreOffer) return
+
       try {
-        console.log("Viewer received offer, setting remote description")
+        if (offerCollision) {
+          await pc.setLocalDescription({ type: 'rollback' })
+        }
         await pc.setRemoteDescription(new RTCSessionDescription(offer))
-        addDebug('remote desc set');
         const answer = await pc.createAnswer()
-        addDebug('answer created');
         await pc.setLocalDescription(answer)
-        socket.emit('webrtc_answer', { targetSocketId: from, answer })
+        socket.emit('webrtc_answer', { targetSocketId: from, answer: pc.localDescription })
       } catch (e) {
-        console.error('WebRTC answer error:', e)
+        console.error('WebRTC offer handling error:', e)
       }
     })
 
     socket.on('webrtc_answer', async ({ from, answer }) => {
       const pc = peerConnections.current[from]
-      if (pc) {
-        try {
-          await pc.setRemoteDescription(new RTCSessionDescription(answer))
-        } catch (e) {
-          console.error('WebRTC set answer error:', e)
-        }
+      if (!pc) return
+      try {
+        await pc.setRemoteDescription(new RTCSessionDescription(answer))
+      } catch (e) {
+        console.error('WebRTC set answer error:', e)
       }
     })
 
     socket.on('webrtc_ice_candidate', async ({ from, candidate }) => {
       const pc = peerConnections.current[from]
-      if (pc) {
-        try {
-          await pc.addIceCandidate(new RTCIceCandidate(candidate))
-        } catch (e) {
-          console.error('ICE candidate error:', e)
-        }
+      if (!pc) return
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate))
+      } catch (e) {
+        if (!pc._ignoreOffer) console.error('ICE candidate error:', e)
       }
+    })
+
+    // --- audio mute indicators ---
+    socket.on('audio_mute_status', ({ socketId, muted }) => {
+      setMicStatus(prev => ({ ...prev, [socketId]: muted }))
+    })
+
+    socket.on('you_were_muted', () => {
+      if (audioStreamRef.current) {
+        const track = audioStreamRef.current.getAudioTracks()[0]
+        if (track) track.enabled = false
+      }
+      setMicMuted(true)
+      setMutedByHost(true)
+      setTimeout(() => setMutedByHost(false), 3000)
+      // Let everyone's indicator update to reflect that we are now muted.
+      socket.emit('audio_mute_status', { sessionId, muted: true })
     })
 
     return () => {
@@ -222,11 +286,61 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
 
   const setLocalStream = (stream) => {
     localStreamRef.current = stream
-    // Now handle any viewers who joined before stream was ready
-    pendingViewers.current.forEach(async (viewerSocketId) => {
-      await initiateWebRTC(viewerSocketId, socketRef.current)
+    // Now handle any viewers who joined before the stream was ready.
+    pendingViewers.current.forEach((viewerSocketId) => {
+      initiateWebRTC(viewerSocketId, socketRef.current)
     })
     pendingViewers.current = []
+  }
+
+  // Request the local microphone. Not called automatically — the UI shows a
+  // "Join with mic" button so we never prompt for permission on page load.
+  const getUserAudio = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      audioStreamRef.current = stream
+      setMicActive(true)
+      setMicMuted(false)
+
+      const track = stream.getAudioTracks()[0]
+      // Add the mic track to every existing peer connection (triggers
+      // renegotiation on each), and pick up any viewers that were waiting.
+      Object.values(peerConnections.current).forEach(pc => {
+        const alreadySending = pc.getSenders().some(s => s.track && s.track.kind === 'audio')
+        if (!alreadySending && track) pc.addTrack(track, stream)
+      })
+      if (socketRef.current) {
+        pendingViewers.current.forEach((viewerSocketId) => {
+          initiateWebRTC(viewerSocketId, socketRef.current)
+        })
+        pendingViewers.current = []
+        socketRef.current.emit('audio_mute_status', { sessionId, muted: false })
+      }
+      return { ok: true }
+    } catch (err) {
+      setMicActive(false)
+      return { ok: false, error: err }
+    }
+  }
+
+  // Mute/unmute our own mic. Keeps the track (no renegotiation) and just
+  // toggles enabled, then broadcasts the new status for everyone's indicator.
+  const muteAudio = (muted) => {
+    if (audioStreamRef.current) {
+      const track = audioStreamRef.current.getAudioTracks()[0]
+      if (track) track.enabled = !muted
+    }
+    setMicMuted(muted)
+    if (socketRef.current) {
+      socketRef.current.emit('audio_mute_status', { sessionId, muted })
+    }
+  }
+
+  // Builder-only: force-mute a specific viewer.
+  const hostMuteViewer = (targetSocketId) => {
+    if (socketRef.current) {
+      socketRef.current.emit('host_mute_viewer', { sessionId, targetSocketId })
+    }
   }
 
   return {
@@ -238,6 +352,15 @@ export function useSocket(sessionId, displayName, role, shouldJoin, addDebug = (
     setLocalStream,
     remoteStream,
     sessionPaused,
-    socket: socketRef.current
+    socket: socketRef.current,
+    // audio
+    getUserAudio,
+    muteAudio,
+    hostMuteViewer,
+    remoteAudioStreams,
+    micStatus,
+    micActive,
+    micMuted,
+    mutedByHost
   }
 }

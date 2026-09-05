@@ -3,6 +3,9 @@ import { useParams, useNavigate } from 'react-router-dom'
 import InstructionModal from '../components/InstructionModal'
 import ScreenShare from '../components/ScreenShare'
 import SessionChat from '../components/SessionChat'
+import ViewerList from '../components/ViewerList'
+import MicControl from '../components/MicControl'
+import RemoteAudio from '../components/RemoteAudio'
 import { useSocket } from '../hooks/useSocket'
 
 export default function BuilderRoom() {
@@ -14,8 +17,18 @@ export default function BuilderRoom() {
   const [stream, setStream] = useState(null)
   const [copied, setCopied] = useState(false)
   const [isPaused, setIsPaused] = useState(false)
+  const [micError, setMicError] = useState(false)
 
-  const { messages, viewers, connected, sendMessage, setLocalStream, socket } = useSocket(sessionId, 'Host', 'builder', true)
+  const {
+    messages, viewers, connected, sendMessage, setLocalStream, socket,
+    getUserAudio, muteAudio, hostMuteViewer, micActive, micMuted, micStatus, remoteAudioStreams
+  } = useSocket(sessionId, 'Host', 'builder', true)
+
+  const handleJoinMic = async () => {
+    setMicError(false)
+    const result = await getUserAudio()
+    if (!result.ok) setMicError(true)
+  }
 
   const shareUrl = window.location.origin + '/s/' + sessionId
 
@@ -149,10 +162,29 @@ export default function BuilderRoom() {
               </h2>
               <p style={{ color: '#aaa' }}>{viewers.length} people watching</p>
             </div>
+
+            <ViewerList viewers={viewers} micStatus={micStatus} onMuteViewer={hostMuteViewer} />
+
+            {/* Mic control bar */}
+            <div style={{ backgroundColor: '#1a1a1a', margin: '1rem', padding: '1rem', borderRadius: '0.5rem', boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)' }}>
+              <MicControl
+                micActive={micActive}
+                micMuted={micMuted}
+                error={micError}
+                onJoin={handleJoinMic}
+                onToggle={() => muteAudio(!micMuted)}
+              />
+            </div>
+
             <SessionChat messages={messages} onSendMessage={sendMessage} isConnected={connected} />
           </div>
         )}
       </main>
+
+      {/* Hidden sinks that play each viewer's microphone */}
+      {remoteAudioStreams.map((a) => (
+        <RemoteAudio key={a.id} stream={a.stream} />
+      ))}
     </div>
   )
 }
