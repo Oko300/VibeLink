@@ -6,6 +6,7 @@ import JoinScreen from '../components/JoinScreen'
 import SessionChat from '../components/SessionChat'
 import MicControl from '../components/MicControl'
 import RemoteAudio from '../components/RemoteAudio'
+import AmbientPlayer from '../components/AmbientPlayer'
 
 const API_URL = import.meta.env.VITE_API_URL || ''
 
@@ -179,6 +180,9 @@ export default function ViewerRoom() {
       {remoteAudioStreams.map((a) => (
         <RemoteAudio key={a.id} stream={a.stream} />
       ))}
+
+      {/* Personal, local-only ambient music (never touches WebRTC) */}
+      <AmbientPlayer />
     </div>
   )
 }

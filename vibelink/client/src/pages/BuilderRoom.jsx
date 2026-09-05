@@ -6,6 +6,7 @@ import SessionChat from '../components/SessionChat'
 import ViewerList from '../components/ViewerList'
 import MicControl from '../components/MicControl'
 import RemoteAudio from '../components/RemoteAudio'
+import AmbientPlayer from '../components/AmbientPlayer'
 import XAuthButton from '../components/XAuthButton'
 import { useSocket } from '../hooks/useSocket'
 import { useAuth } from '../hooks/useAuth'
@@ -209,6 +210,9 @@ export default function BuilderRoom() {
       {remoteAudioStreams.map((a) => (
         <RemoteAudio key={a.id} stream={a.stream} />
       ))}
+
+      {/* Personal, local-only ambient music (never touches WebRTC) */}
+      <AmbientPlayer />
     </div>
   )
 }
