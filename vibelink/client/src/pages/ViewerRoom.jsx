@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { useParams, useNavigate } from 'react-router-dom'
+import { useParams } from 'react-router-dom'
 import { useSocket } from '../hooks/useSocket'
 import { useAuth } from '../hooks/useAuth'
 import JoinScreen from '../components/JoinScreen'
@@ -11,7 +11,6 @@ const API_URL = import.meta.env.VITE_API_URL || ''
 
 export default function ViewerRoom() {
   const { sessionId } = useParams()
-  const navigate = useNavigate()
   const videoRef = useRef(null)
   const { user, ready: authReady } = useAuth()
   const [sessionActive, setSessionActive] = useState(null)
@@ -97,9 +96,11 @@ export default function ViewerRoom() {
 
   if (!sessionActive) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#1a202c', color: 'white' }}>
-        <p>Session has ended</p>
-        <button onClick={() => navigate('/')} style={{ marginTop: '1rem', background: '#06b6d4', color: 'white', border: 'none', padding: '0.75rem 2rem', borderRadius: '8px', cursor: 'pointer' }}>Go Home</button>
+      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: '100vh', background: '#0d0d0d', color: '#fff', fontFamily: 'Arial, sans-serif', textAlign: 'center', padding: '20px' }}>
+        <h1 style={{ fontSize: '2.5rem', fontWeight: 'bold', margin: '0 0 1rem' }}>Session Has Ended</h1>
+        <p style={{ fontSize: '1.15rem', color: '#e0e0e0', margin: '0 0 0.75rem' }}>This build session has been closed by the host.</p>
+        <p style={{ fontSize: '0.95rem', color: '#888', margin: '0 0 2rem' }}>The link is no longer active. Nothing was recorded.</p>
+        <a href="https://vibe-link-tau.vercel.app" style={{ color: '#6366f1', textDecoration: 'none', fontSize: '1rem', fontWeight: 600 }}>← Back to VibeLink</a>
       </div>
     )
   }
