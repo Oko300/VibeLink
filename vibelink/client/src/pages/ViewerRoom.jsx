@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import { useSocket } from '../hooks/useSocket'
+import { useAuth } from '../hooks/useAuth'
 import JoinScreen from '../components/JoinScreen'
 import SessionChat from '../components/SessionChat'
 import MicControl from '../components/MicControl'
@@ -12,6 +13,7 @@ export default function ViewerRoom() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
   const videoRef = useRef(null)
+  const { user, ready: authReady } = useAuth()
   const [sessionActive, setSessionActive] = useState(null)
   const [hasJoined, setHasJoined] = useState(false)
   const [displayName, setDisplayName] = useState('Guest')
@@ -28,6 +30,16 @@ export default function ViewerRoom() {
     return () => window.removeEventListener('resize', handleResize)
   }, [])
 
+  // If already signed in with X, skip the join screen entirely.
+  useEffect(() => {
+    if (authReady && user && !hasJoined) {
+      setDisplayName(user.displayName || 'Guest')
+      setHasJoined(true)
+    }
+  }, [authReady, user, hasJoined])
+
+  const identity = user ? { username: user.username, profilePicture: user.profilePicture } : null
+
   const {
     messages, viewers, connected, sendMessage, remoteStream, sessionPaused,
     getUserAudio, muteAudio, micActive, micMuted, mutedByHost, remoteAudioStreams
@@ -35,7 +47,8 @@ export default function ViewerRoom() {
     sessionId,
     displayName,
     'viewer',
-    hasJoined
+    hasJoined,
+    identity
   )
 
   const handleJoinMic = async () => {
@@ -92,7 +105,16 @@ export default function ViewerRoom() {
   }
 
   if (!hasJoined) {
-    return <JoinScreen onJoin={handleJoin} />
+    // While auth is still resolving — or if signed in and about to auto-join —
+    // show a brief loading state instead of flashing the guest join screen.
+    if (!authReady || user) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', background: '#1a202c', color: 'white' }}>
+          <p>Loading session...</p>
+        </div>
+      )
+    }
+    return <JoinScreen sessionId={sessionId} onJoin={handleJoin} />
   }
 
   return (

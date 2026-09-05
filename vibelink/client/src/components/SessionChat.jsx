@@ -47,9 +47,19 @@ export default function SessionChat({ messages, onSendMessage, currentUserName, 
           return (
             <div key={msg.id} style={{ marginBottom: '0.75rem' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
+                {msg.profilePicture && (
+                  <img
+                    src={msg.profilePicture}
+                    alt=""
+                    style={{ width: '20px', height: '20px', borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }}
+                  />
+                )}
                 <span style={{ fontWeight: 'bold', color: msg.role === 'builder' ? '#06b6d4' : 'white' }}>
-                  {msg.displayName}
+                  {msg.displayName || 'Guest'}
                 </span>
+                {msg.username && (
+                  <span style={{ color: '#71767b', fontSize: '0.75em' }}>@{msg.username}</span>
+                )}
                 {msg.role === 'builder' && (
                   <span style={{ backgroundColor: '#06b6d4', color: '#0d0d0d', fontSize: '0.7em', padding: '0.1rem 0.4rem', borderRadius: '4px', fontWeight: 'bold' }}>
                     Host

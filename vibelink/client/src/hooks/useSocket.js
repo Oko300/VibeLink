@@ -7,13 +7,23 @@ const SOCKET_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 // STUN-only is enough for same-network peers but not for cellular viewers.
 const DEFAULT_ICE_SERVERS = [{ urls: 'stun:stun.l.google.com:19302' }]
 
-export function useSocket(sessionId, displayName, role, shouldJoin) {
+export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
   const socketRef = useRef(null)
   const localStreamRef = useRef(null)   // screen-share stream (builder only)
   const audioStreamRef = useRef(null)   // local microphone stream (anyone who joins with mic)
   const peerConnections = useRef({})
   const viewerPeerConnections = useRef({})   // audio-only mesh between viewers
   const pendingViewers = useRef([])
+  // Mirror the optional X identity so the join emits (registered once) always
+  // read the freshest value rather than a stale closure.
+  const identityRef = useRef(identity || null)
+  useEffect(() => { identityRef.current = identity || null }, [identity])
+  // Same for the values the connect handler needs, so socket.io reconnects and
+  // late-arriving auth both join with current data.
+  const displayNameRef = useRef(displayName)
+  useEffect(() => { displayNameRef.current = displayName }, [displayName])
+  const shouldJoinRef = useRef(shouldJoin)
+  useEffect(() => { shouldJoinRef.current = shouldJoin }, [shouldJoin])
   const [messages, setMessages] = useState([])
   const [viewers, setViewers] = useState([])
   const [connected, setConnected] = useState(false)
@@ -187,6 +197,22 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
     sendViewerOffer(pc, peerId, socket, true)
   }
 
+  // Single source of truth for the join payload — reads refs so it is always
+  // current regardless of which code path (connect / reconnect / late auth)
+  // triggers it.
+  const emitJoin = () => {
+    const s = socketRef.current
+    if (!s) return
+    const id = identityRef.current
+    s.emit('join_session', {
+      sessionId,
+      displayName: displayNameRef.current || 'Guest',
+      role: role || 'viewer',
+      username: id ? id.username : null,
+      profilePicture: id ? id.profilePicture : null
+    })
+  }
+
   useEffect(() => {
     if (!sessionId) return
 
@@ -202,9 +228,9 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
 
     socket.on('connect', () => {
       setConnected(true)
-      if (shouldJoin) {
-        socket.emit('join_session', { sessionId, displayName: displayName || 'Guest', role: role || 'viewer' })
-      }
+      // shouldJoinRef (not the captured value) so a reconnect or an auth state
+      // that resolved after this handler was registered still joins correctly.
+      if (shouldJoinRef.current) emitJoin()
     })
 
     socket.on('chat_message', (msg) => {
@@ -400,7 +426,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin) {
 
   useEffect(() => {
     if (shouldJoin && socketRef.current && socketRef.current.connected) {
-      socketRef.current.emit('join_session', { sessionId, displayName: displayName || 'Guest', role: role || 'viewer' })
+      emitJoin()
     }
   }, [shouldJoin])
 

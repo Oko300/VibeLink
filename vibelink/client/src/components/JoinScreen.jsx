@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import XAuthButton from './XAuthButton';
 
 export default function JoinScreen({ sessionId, onJoin }) {
   const [inputName, setInputName] = useState('');
@@ -79,6 +80,23 @@ export default function JoinScreen({ sessionId, onJoin }) {
       color: '#666',
       marginTop: '1rem',
     },
+    dividerRow: {
+      display: 'flex',
+      alignItems: 'center',
+      gap: '0.75rem',
+      width: '100%',
+      maxWidth: '400px',
+      margin: '1.5rem 0 0.5rem',
+    },
+    dividerLine: {
+      flex: 1,
+      height: '1px',
+      background: '#333',
+    },
+    dividerText: {
+      color: '#666',
+      fontSize: '0.85em',
+    },
 
   };
 
@@ -92,6 +110,14 @@ export default function JoinScreen({ sessionId, onJoin }) {
         🛡 Private session · Invite only · Session ends when host closes it
       </div>
 
+      <XAuthButton sessionId={sessionId} style={{ width: '100%', maxWidth: '400px', padding: '1rem' }} />
+
+      <div style={styles.dividerRow}>
+        <span style={styles.dividerLine} />
+        <span style={styles.dividerText}>or</span>
+        <span style={styles.dividerLine} />
+      </div>
+
       <input
         type="text"
         placeholder="Your name (optional — leave blank for Guest)"
@@ -100,7 +126,7 @@ export default function JoinScreen({ sessionId, onJoin }) {
         style={styles.nameInput}
       />
       <button onClick={handleJoin} style={styles.joinButton}>
-        Join Session →
+        Continue as Guest →
       </button>
     </div>
   );

@@ -5,14 +5,20 @@ export function initSessionSocket(io) {
     console.log('Socket connected:', socket.id)
 
     // Join a session room
-    socket.on('join_session', ({ sessionId, displayName, role }) => {
+    socket.on('join_session', ({ sessionId, displayName, role, username, profilePicture }) => {
       socket.join(sessionId)
       socket.data.sessionId = sessionId
       socket.data.displayName = displayName || 'Guest'
       socket.data.role = role || 'viewer'
+      // Optional X (Twitter) identity — used only for chat display.
+      socket.data.username = username || null
+      socket.data.profilePicture = profilePicture || null
 
       // Add viewer to session store if not builder
       if (role !== 'builder') {
+        // Clear any prior entry for this socket first so a reconnect or a
+        // re-join (e.g. identity resolved after connect) can't duplicate it.
+        sessionStore.removeViewer(sessionId, socket.id)
         sessionStore.addViewer(sessionId, {
           socketId: socket.id,
           displayName: socket.data.displayName
@@ -59,6 +65,8 @@ export function initSessionSocket(io) {
         id: Date.now().toString(),
         displayName: socket.data.displayName || 'Guest',
         role: socket.data.role || 'viewer',
+        username: socket.data.username || null,
+        profilePicture: socket.data.profilePicture || null,
         message: message.trim(),
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       }

@@ -6,11 +6,14 @@ import SessionChat from '../components/SessionChat'
 import ViewerList from '../components/ViewerList'
 import MicControl from '../components/MicControl'
 import RemoteAudio from '../components/RemoteAudio'
+import XAuthButton from '../components/XAuthButton'
 import { useSocket } from '../hooks/useSocket'
+import { useAuth } from '../hooks/useAuth'
 
 export default function BuilderRoom() {
   const { sessionId } = useParams()
   const navigate = useNavigate()
+  const { user, ready: authReady } = useAuth()
   const [showModal, setShowModal] = useState(false)
   const [shouldStart, setShouldStart] = useState(false)
   const [isLive, setIsLive] = useState(false)
@@ -19,10 +22,14 @@ export default function BuilderRoom() {
   const [isPaused, setIsPaused] = useState(false)
   const [micError, setMicError] = useState(false)
 
+  // Host uses their X display name once signed in, otherwise "Host".
+  const builderName = user ? (user.displayName || 'Host') : 'Host'
+  const identity = user ? { username: user.username, profilePicture: user.profilePicture } : null
+
   const {
     messages, viewers, connected, sendMessage, setLocalStream, socket,
     getUserAudio, muteAudio, hostMuteViewer, micActive, micMuted, micStatus, remoteAudioStreams
-  } = useSocket(sessionId, 'Host', 'builder', true)
+  } = useSocket(sessionId, builderName, 'builder', authReady, identity)
 
   const handleJoinMic = async () => {
     setMicError(false)
@@ -128,6 +135,23 @@ export default function BuilderRoom() {
           >
             {copied ? '✓ Copied!' : 'Copy Link'}
           </button>
+
+          {/* Host identity */}
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #333' }}>
+            {user ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                {user.profilePicture && (
+                  <img src={user.profilePicture} alt="" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
+                )}
+                <span style={{ color: '#e0e0e0', fontSize: '0.9rem' }}>
+                  Hosting as <strong>{user.displayName}</strong>
+                  {user.username ? <span style={{ color: '#71767b' }}> @{user.username}</span> : null}
+                </span>
+              </div>
+            ) : (
+              <XAuthButton sessionId={sessionId} style={{ width: '100%' }} />
+            )}
+          </div>
         </div>
 
         {/* Before live */}
