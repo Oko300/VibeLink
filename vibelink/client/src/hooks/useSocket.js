@@ -55,6 +55,9 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
   const [micActive, setMicActive] = useState(false)   // have we captured a local mic?
   const [micMuted, setMicMuted] = useState(false)     // is our local mic muted?
   const [mutedByHost, setMutedByHost] = useState(false)
+  // Host-driven ("room vibe") ambient music — viewers follow these.
+  const [remoteMusicVolume, setRemoteMusicVolume] = useState(null)
+  const [remoteMusicState, setRemoteMusicState] = useState(null)
 
   // Ref mirror so the socket-event closures (registered once per session) always
   // read the freshest TURN credentials rather than the captured default.
@@ -438,6 +441,10 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
       socket.emit('audio_mute_status', { sessionId, muted: true })
     })
 
+    // Host-controlled ambient music ("room vibe") — broadcast to viewers only.
+    socket.on('music_volume_set', ({ volume }) => setRemoteMusicVolume(volume))
+    socket.on('music_playing_set', ({ playing, trackIndex }) => setRemoteMusicState({ playing, trackIndex }))
+
     return () => {
       Object.values(peerConnections.current).forEach(pc => pc.close())
       peerConnections.current = {}
@@ -478,7 +485,17 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
   // "Join with mic" button so we never prompt for permission on page load.
   const getUserAudio = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      // Echo cancellation / noise suppression / AGC keep the mic from feeding
+      // back the remote audio (and the ambient music) on speaker-phone setups.
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation: true,
+          noiseSuppression: true,
+          autoGainControl: true,
+          sampleRate: 48000
+        },
+        video: false
+      })
       audioStreamRef.current = stream
       setMicActive(true)
       setMicMuted(false)
@@ -539,6 +556,16 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
     }
   }
 
+  // Builder-only: drive the "room vibe" ambient music for every viewer. The
+  // audio itself still plays locally on each device (never over WebRTC); these
+  // just sync volume and play/track state via the socket.
+  const hostSetMusicVolume = (volume) => {
+    if (socketRef.current) socketRef.current.emit('host_set_music_volume', { sessionId, volume })
+  }
+  const hostSetMusicPlaying = (playing, trackIndex) => {
+    if (socketRef.current) socketRef.current.emit('host_set_music_playing', { sessionId, playing, trackIndex })
+  }
+
   return {
     messages,
     viewers,
@@ -557,6 +584,11 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
     micStatus,
     micActive,
     micMuted,
-    mutedByHost
+    mutedByHost,
+    // host-controlled ambient music ("room vibe")
+    remoteMusicVolume,
+    remoteMusicState,
+    hostSetMusicVolume,
+    hostSetMusicPlaying
   }
 }

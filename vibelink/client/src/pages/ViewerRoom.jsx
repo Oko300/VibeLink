@@ -42,7 +42,8 @@ export default function ViewerRoom() {
 
   const {
     messages, viewers, connected, sendMessage, remoteStream, sessionPaused,
-    getUserAudio, muteAudio, micActive, micMuted, mutedByHost, remoteAudioStreams
+    getUserAudio, muteAudio, micActive, micMuted, mutedByHost, remoteAudioStreams,
+    remoteMusicVolume, remoteMusicState
   } = useSocket(
     sessionId,
     displayName,
@@ -194,8 +195,12 @@ export default function ViewerRoom() {
         <RemoteAudio key={a.id} stream={a.stream} />
       ))}
 
-      {/* Personal, local-only ambient music (never touches WebRTC) */}
-      <AmbientPlayer />
+      {/* Ambient music — follows the host's "room vibe"; local volume still adjustable */}
+      <AmbientPlayer
+        isHost={false}
+        remoteMusicVolume={remoteMusicVolume}
+        remoteMusicState={remoteMusicState}
+      />
     </div>
   )
 }

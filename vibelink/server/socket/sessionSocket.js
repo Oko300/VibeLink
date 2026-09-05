@@ -137,6 +137,19 @@ export function initSessionSocket(io) {
       io.to(targetSocketId).emit('you_were_muted')
     });
 
+    // Ambient "room vibe" music: only the builder may drive it. Broadcast the
+    // volume / play state to every viewer in the session (sender excluded).
+    // The audio still plays locally on each device — nothing is streamed here.
+    socket.on('host_set_music_volume', ({ sessionId, volume }) => {
+      if (socket.data.role !== 'builder') return
+      socket.to(sessionId).emit('music_volume_set', { volume })
+    });
+
+    socket.on('host_set_music_playing', ({ sessionId, playing, trackIndex }) => {
+      if (socket.data.role !== 'builder') return
+      socket.to(sessionId).emit('music_playing_set', { playing, trackIndex })
+    });
+
 
     // Handle disconnect
     socket.on('disconnect', () => {

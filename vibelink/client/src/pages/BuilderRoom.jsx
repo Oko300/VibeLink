@@ -29,7 +29,8 @@ export default function BuilderRoom() {
 
   const {
     messages, viewers, connected, sendMessage, setLocalStream, socket,
-    getUserAudio, muteAudio, hostMuteViewer, micActive, micMuted, micStatus, remoteAudioStreams
+    getUserAudio, muteAudio, hostMuteViewer, micActive, micMuted, micStatus, remoteAudioStreams,
+    hostSetMusicVolume, hostSetMusicPlaying
   } = useSocket(sessionId, builderName, 'builder', authReady, identity)
 
   const handleJoinMic = async () => {
@@ -220,8 +221,12 @@ export default function BuilderRoom() {
         <RemoteAudio key={a.id} stream={a.stream} />
       ))}
 
-      {/* Personal, local-only ambient music (never touches WebRTC) */}
-      <AmbientPlayer />
+      {/* Host "room vibe" music — plays locally and broadcasts volume/play to viewers */}
+      <AmbientPlayer
+        isHost={true}
+        onVolumeChange={hostSetMusicVolume}
+        onPlayingChange={hostSetMusicPlaying}
+      />
     </div>
   )
 }
