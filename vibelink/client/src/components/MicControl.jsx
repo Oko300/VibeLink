@@ -29,13 +29,13 @@ export default function MicControl({ micActive, micMuted, error, onJoin, onToggl
           onClick={onToggle}
           style={{ ...pill, backgroundColor: micMuted ? 'var(--clr-secondary)' : 'var(--clr-primary)', color: 'var(--clr-text-inverted)' }}
         >
-          {micMuted ? '🔇 Muted — tap to talk' : '🎙️ Mic live — tap to mute'}
+          {micMuted ? '🔇 Muted. Tap to talk' : '🎙️ Mic live. Tap to mute'}
         </button>
       )}
 
       {error && (
         <span style={{ color: 'var(--clr-error)', fontSize: '0.8rem', textAlign: 'center' }}>
-          Mic access denied — you can still watch and use chat
+          Mic access denied. You can still watch and use chat
         </span>
       )}
     </div>

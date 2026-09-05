@@ -174,7 +174,7 @@ export default function BuilderRoom() {
             >
               ▶ Start Screen Share
             </button>
-            <p style={{ color: '#aaa', marginTop: '1rem' }}>Viewers can already join via the link above. Start sharing when ready.</p>
+            <p style={{ color: '#aaa', marginTop: '1rem' }}>Viewers can join via the link above. Start sharing when ready.</p>
           </div>
         )}
 

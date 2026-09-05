@@ -40,7 +40,7 @@ export default function SessionChat({ messages, onSendMessage, currentUserName, 
           if (msg.role === 'system') {
             return (
               <div key={msg.id} style={{ textAlign: 'center', fontStyle: 'italic', color: '#9ca3af', fontSize: '0.85em', margin: '0.5rem 0' }}>
-                — {msg.message} —
+                {msg.message}
               </div>
             )
           }

@@ -64,7 +64,7 @@ export default function InstructionModal({ onConfirm }) {
           <br /><br />
           Selecting just a Tab or Window will limit what viewers can see.
           <br /><br />
-          On Windows/Mac: You may see a system permission request — click Allow to continue.
+          On Windows/Mac: You may see a system permission request. Click Allow to continue.
         </p>
         <button
           onClick={onConfirm}
@@ -72,7 +72,7 @@ export default function InstructionModal({ onConfirm }) {
           onMouseOver={(e) => e.currentTarget.style.backgroundColor = styles.buttonHover.backgroundColor}
           onMouseOut={(e) => e.currentTarget.style.backgroundColor = styles.button.backgroundColor}
         >
-          Got it — Start Sharing
+          Got it. Start Sharing
         </button>
       </div>
     </div>

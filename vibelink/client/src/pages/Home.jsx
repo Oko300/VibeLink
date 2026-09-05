@@ -2,9 +2,9 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
 const FEATURES = [
-  { icon: '🖥', title: 'Live Screen Share', text: 'They see exactly what you see — VS Code, Claude, everything' },
-  { icon: '🎙', title: 'Voice + Chat', text: 'Talk and type in real time while the AI works' },
-  { icon: '🛡', title: 'Private & Ephemeral', text: 'Link dies the moment you end. Nothing is stored.' },
+  { icon: '🖥', title: 'Live Screen Share', text: 'They see exactly what you see. VS Code, Claude, everything.' },
+  { icon: '🎙', title: 'Voice + Chat', text: 'Talk and type while the AI works' },
+  { icon: '🛡', title: 'Private & Ephemeral', text: 'The link dies when you end the session. Nothing is stored.' },
 ];
 
 export default function Home() {
@@ -52,7 +52,7 @@ export default function Home() {
 
       {/* Subtext */}
       <p style={{ fontSize: '18px', color: '#888888', textAlign: 'center', maxWidth: '480px', lineHeight: 1.6, marginBottom: '48px' }}>
-        Share your screen live while the AI builds. Drop a link in Commons chat. Other builders watch, talk, and help — in real time.
+        Share your screen while the AI builds. Drop the link in Commons chat. Other builders join, watch, and help live.
       </p>
 
       <button
@@ -87,7 +87,7 @@ export default function Home() {
 
       {/* Footer */}
       <footer style={{ fontSize: '13px', color: '#444444', textAlign: 'center' }}>
-        Built for the Commons community · Powered by builders helping builders
+        Built for the Commons community. Powered by builders helping builders.
       </footer>
     </div>
   );
