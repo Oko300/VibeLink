@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import XAuthButton from './XAuthButton';
+ 
 
 export default function JoinScreen({ sessionId, onJoin }) {
   const [inputName, setInputName] = useState('');
@@ -110,13 +110,7 @@ export default function JoinScreen({ sessionId, onJoin }) {
         🛡 Private session · Invite only · Session ends when host closes it
       </div>
 
-      <XAuthButton sessionId={sessionId} style={{ width: '100%', maxWidth: '400px', padding: '1rem' }} />
-
-      <div style={styles.dividerRow}>
-        <span style={styles.dividerLine} />
-        <span style={styles.dividerText}>or</span>
-        <span style={styles.dividerLine} />
-      </div>
+ 
 
       <input
         type="text"

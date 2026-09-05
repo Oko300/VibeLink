@@ -7,7 +7,7 @@ import ViewerList from '../components/ViewerList'
 import MicControl from '../components/MicControl'
 import RemoteAudio from '../components/RemoteAudio'
 import AmbientPlayer from '../components/AmbientPlayer'
-import XAuthButton from '../components/XAuthButton'
+
 import { useSocket } from '../hooks/useSocket'
 import { useAuth } from '../hooks/useAuth'
 
@@ -149,19 +149,9 @@ export default function BuilderRoom() {
 
           {/* Host identity */}
           <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid #333' }}>
-            {user ? (
-              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                {user.profilePicture && (
-                  <img src={user.profilePicture} alt="" style={{ width: '28px', height: '28px', borderRadius: '50%', objectFit: 'cover' }} />
-                )}
-                <span style={{ color: '#e0e0e0', fontSize: '0.9rem' }}>
-                  Hosting as <strong>{user.displayName}</strong>
-                  {user.username ? <span style={{ color: '#71767b' }}> @{user.username}</span> : null}
-                </span>
-              </div>
-            ) : (
-              <XAuthButton sessionId={sessionId} style={{ width: '100%' }} />
-            )}
+              <span style={{ color: '#e0e0e0', fontSize: '0.9rem' }}>
+                Hosting as <strong>{builderName}</strong>
+              </span>
           </div>
         </div>
 

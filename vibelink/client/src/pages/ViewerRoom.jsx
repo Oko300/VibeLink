@@ -31,12 +31,7 @@ export default function ViewerRoom() {
   }, [])
 
   // If already signed in with X, skip the join screen entirely.
-  useEffect(() => {
-    if (authReady && user && !hasJoined) {
-      setDisplayName(user.displayName || 'Guest')
-      setHasJoined(true)
-    }
-  }, [authReady, user, hasJoined])
+
 
   const identity = user ? { username: user.username, profilePicture: user.profilePicture } : null
 
