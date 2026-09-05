@@ -80,6 +80,18 @@ export default function AmbientPlayer({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [remoteMusicState])
 
+  const handlePlay = async () => {
+    if (!audioRef.current) return;
+    try {
+      audioRef.current.muted = false;
+      await audioRef.current.play();
+      setIsPlaying(true);
+    } catch (err) {
+      console.warn('Autoplay blocked, need user tap:', err);
+      setIsPlaying(false);
+    }
+  };
+
   const togglePlay = () => {
     const audio = audioRef.current
     if (!audio) return
@@ -89,7 +101,7 @@ export default function AmbientPlayer({
       if (isHost && onPlayingChange) onPlayingChange(false, trackIndex)
     } else {
       audio.volume = volume / 100
-      audio.play().then(() => setIsPlaying(true)).catch(() => {})
+      handlePlay();
       if (isHost && onPlayingChange) onPlayingChange(true, trackIndex)
     }
   }
@@ -123,15 +135,30 @@ export default function AmbientPlayer({
           src={TRACKS[trackIndex].url}
           onEnded={handleEnded}
           onError={handleError}
+          playsInline={true}
           preload="none"
+          crossOrigin="anonymous"
         />
         <button
           onClick={togglePlay}
-          style={styles.iconBtn}
+          style={{
+            background: isPlaying ? 'transparent' : '#2dd4bf',
+            border: isPlaying ? '1px solid #444' : 'none',
+            borderRadius: '50%',
+            width: '32px',
+            height: '32px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            color: isPlaying ? '#888' : '#0a0a0a',
+            fontSize: '14px',
+            flexShrink: 0
+          }}
           title={isPlaying ? 'Pause music' : 'Play music'}
           aria-label={isPlaying ? 'Pause music' : 'Play music'}
         >
-          {isPlaying ? '⏸' : '🎵'}
+          {isPlaying ? '⏸' : '▶'}
         </button>
         <span style={styles.label}>Lofi Vibes {trackIndex + 1}/{TRACKS.length}</span>
         <input
@@ -156,30 +183,31 @@ export default function AmbientPlayer({
 const styles = {
   wrap: {
     position: 'fixed',
-    bottom: '16px',   // clears the chat input on both desktop and mobile
+    bottom: '80px',
     right: '16px',
-    zIndex: 10000,
+    zIndex: 7000,
     display: 'flex',
     flexDirection: 'column',
     alignItems: 'flex-end',
   },
   vibeLabel: {
     fontSize: '10px',
-    fontWeight: 'bold',
-
-    color: 'var(--clr-primary)',
-    marginBottom: '3px',
-    letterSpacing: '0.02em',
+    color: '#2dd4bf',
+    textAlign: 'right',
+    marginBottom: '4px',
+    letterSpacing: '0.06em',
+    textTransform: 'uppercase'
   },
   bar: {
+    background: '#1a1a1a',
+    border: '1px solid rgba(45,212,191,0.4)',
+    borderRadius: '32px',
+    padding: '10px 16px',
     display: 'flex',
     alignItems: 'center',
-    gap: '8px',
-    background: 'var(--clr-bg-alt)',
-    border: '1px solid var(--clr-border)',
-    borderRadius: '999px',
-    padding: '6px 12px',
-    boxShadow: 'var(--shadow-lg)',
+    gap: '10px',
+    minWidth: '200px',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.5)',
     fontFamily: 'var(--font-sans)',
     fontSize: '12px',
     color: 'var(--clr-text)',
