@@ -57,9 +57,9 @@ export default function AmbientPlayer({
     if (!roomMusic || !audioRef.current) return;
 
     // sync track
-    if (roomMusic.trackIndex !== currentTrack) {
-      setCurrentTrack(roomMusic.trackIndex);
-      audioRef.current.src = TRACKS[roomMusic.trackIndex].url;
+    if (roomMusic.currentTrack !== currentTrack) {
+      setCurrentTrack(roomMusic.currentTrack);
+      audioRef.current.src = TRACKS[roomMusic.currentTrack].url;
       audioRef.current.load();
     }
 
@@ -90,7 +90,7 @@ export default function AmbientPlayer({
   }, [volume])
 
   // When the track changes (skip or auto-advance), keep playing the new one.
-  // Intentionally depends only on trackIndex so pressing play doesn't double-fire.
+  // Intentionally depends only on currentTrack so pressing play doesn't double-fire.
   useEffect(() => {
     if (!audioRef.current) return;
     const wasPlaying = isPlaying;
@@ -108,7 +108,7 @@ export default function AmbientPlayer({
   useEffect(() => {
     if (audioRef.current) {
       audioRef.current.onerror = () => {
-        console.error('Audio loading error for track:', TRACKS[trackIndex].name);
+        console.error('Audio loading error for track:', TRACKS[currentTrack].name);
       };
       audioRef.current.onended = () => {
         if (!audioRef.current) return;
@@ -135,17 +135,17 @@ export default function AmbientPlayer({
     if (isPlaying) {
       audioRef.current.pause();
       setIsPlaying(false);
-      if (onPlayingChange) onPlayingChange(false, trackIndex);
+      if (onPlayingChange) onPlayingChange(false, currentTrack);
     } else {
       audioRef.current.play().catch(err => {
         console.warn('Play failed:', err);
         setIsPlaying(false);
       });
       setIsPlaying(true);
-      if (onPlayingChange) onPlayingChange(true, trackIndex);
+      if (onPlayingChange) onPlayingChange(true, currentTrack);
     }
   }
-      setTrackIndex(remoteMusicState.trackIndex)
+      setCurrentTrack(remoteMusicState.currentTrack)
       if (remoteMusicState.playing) {
         setIsPlaying(true)
         safePlay()
@@ -165,7 +165,7 @@ export default function AmbientPlayer({
     if (isPlaying) {
       audio.pause()
       setIsPlaying(false)
-      if (isHost && onPlayingChange) onPlayingChange(false, trackIndex)
+      if (isHost && onPlayingChange) onPlayingChange(false, currentTrack)
     } else {
       {(roomMusic?.djSocketId && roomMusic.djSocketId === socketId) && (
         <div style={{ fontSize: '11px', color: '#2dd4bf', textAlign: 'right', marginBottom: '4px' }}>🎧 You are DJ</div>
@@ -175,7 +175,7 @@ export default function AmbientPlayer({
       )}
       audio.volume = volume / 100
       safePlay()
-      if (isHost && onPlayingChange) onPlayingChange(true, trackIndex)
+      if (isHost && onPlayingChange) onPlayingChange(true, currentTrack)
     }
   }
 

@@ -453,7 +453,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
 
     // Host-controlled ambient music ("room vibe") — broadcast to viewers only.
     socket.on('music_volume_set', ({ volume }) => setRemoteMusicVolume(volume))
-    socket.on('music_playing_set', ({ playing, trackIndex }) => setRemoteMusicState({ playing, trackIndex }))
+    socket.on('music_playing_set', ({ playing, currentTrack }) => setRemoteMusicState({ playing, currentTrack }))
 
     return () => {
       Object.values(peerConnections.current).forEach(pc => pc.close())
@@ -569,9 +569,9 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
   // Builder-only: drive the "room vibe" ambient music for every viewer. The
   // audio itself still plays locally on each device (never over WebRTC); these
   // just sync volume and play/track state via the socket.
-  const roomMusicPlay = (trackIndex, volume) => socketRef.current?.emit('room_music_play', { sessionId, trackIndex, volume });
+  const roomMusicPlay = (currentTrack, volume) => socketRef.current?.emit('room_music_play', { sessionId, currentTrack, volume });
   const roomMusicPause = () => socketRef.current?.emit('room_music_pause', { sessionId });
-  const roomMusicSkip = (trackIndex) => socketRef.current?.emit('room_music_skip', { sessionId, trackIndex });
+  const roomMusicSkip = (currentTrack) => socketRef.current?.emit('room_music_skip', { sessionId, currentTrack });
   const roomMusicVolume = (volume) => socketRef.current?.emit('room_music_volume', { sessionId, volume });
   const roomMusicRemove = () => socketRef.current?.emit('room_music_remove', { sessionId });
 

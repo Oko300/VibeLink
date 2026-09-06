@@ -24,7 +24,7 @@ const sessions = loadSessions()
 
 export const sessionStore = {
   create(sessionId, data) {
-    sessions.set(sessionId, { ...data, viewers: [], active: true, createdAt: Date.now(), music: { playing: false, trackIndex: 0, volume: 20, djSocketId: null } })
+    sessions.set(sessionId, { ...data, viewers: [], active: true, createdAt: Date.now(), music: { playing: false, currentTrack: 0, volume: 20, djSocketId: null } })
     saveSessions(sessions)
   },
   get(sessionId) {

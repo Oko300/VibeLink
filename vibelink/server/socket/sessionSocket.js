@@ -143,12 +143,12 @@ export function initSessionSocket(io) {
     });
 
     // Shared room music handlers
-    socket.on('room_music_play', ({ sessionId, trackIndex, volume }) => {
+    socket.on('room_music_play', ({ sessionId, currentTrack, volume }) => {
       const session = sessionStore.get(sessionId);
       if (!session) return;
       session.music = {
         playing: true,
-        trackIndex: trackIndex ?? session.music?.trackIndex ?? 0,
+        currentTrack: currentTrack ?? session.music?.currentTrack ?? 0,
         volume: volume ?? session.music?.volume ?? 20,
         djSocketId: socket.id
       };
@@ -169,13 +169,13 @@ export function initSessionSocket(io) {
       sessionStore.saveSessions(); // Persist changes
     });
 
-    socket.on('room_music_skip', ({ sessionId, trackIndex }) => {
+    socket.on('room_music_skip', ({ sessionId, currentTrack }) => {
       const session = sessionStore.get(sessionId);
       if (!session) return;
       const isHost = session.builderId === socket.id;
       const isDJ = session.music?.djSocketId === socket.id;
       if (!isHost && !isDJ) return;
-      session.music.trackIndex = trackIndex;
+      session.music.currentTrack = currentTrack;
       session.music.playing = true;
       io.to(sessionId).emit('room_music_update', session.music);
       sessionStore.saveSessions(); // Persist changes
@@ -197,7 +197,7 @@ export function initSessionSocket(io) {
       if (!session) return;
       // only host can remove music from room
       if (session.builderId !== socket.id) return;
-      session.music = { playing: false, trackIndex: 0, volume: 20, djSocketId: null };
+      session.music = { playing: false, currentTrack: 0, volume: 20, djSocketId: null };
       io.to(sessionId).emit('room_music_removed');
       sessionStore.saveSessions(); // Persist changes
     });
@@ -211,9 +211,9 @@ export function initSessionSocket(io) {
       socket.to(sessionId).emit('music_volume_set', { volume })
     });
 
-    socket.on('host_set_music_playing', ({ sessionId, playing, trackIndex }) => {
+    socket.on('host_set_music_playing', ({ sessionId, playing, currentTrack }) => {
       if (socket.data.role !== 'builder') return
-      socket.to(sessionId).emit('music_playing_set', { playing, trackIndex })
+      socket.to(sessionId).emit('music_playing_set', { playing, currentTrack })
     });
 
 
