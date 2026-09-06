@@ -37,9 +37,9 @@ export default function ViewerRoom() {
   const identity = user ? { username: user.username, profilePicture: user.profilePicture } : null
 
   const {
-    messages, viewers, connected, sendMessage, remoteStream, sessionPaused,
+    messages, viewers, connected, sendMessage, remoteStream, sessionPaused, socketId,
     getUserAudio, muteAudio, micActive, micMuted, mutedByHost, remoteAudioStreams,
-    remoteMusicVolume, remoteMusicState
+    roomMusic, musicRemoved, roomMusicPlay, roomMusicPause, roomMusicSkip, roomMusicVolume, roomMusicRemove
   } = useSocket(
     sessionId,
     displayName,
@@ -194,8 +194,14 @@ export default function ViewerRoom() {
       {/* Ambient music — follows the host's "room vibe"; local volume still adjustable */}
       <AmbientPlayer
         isHost={false}
-        remoteMusicVolume={remoteMusicVolume}
-        remoteMusicState={remoteMusicState}
+        socketId={socketId}
+        roomMusic={roomMusic}
+        musicRemoved={musicRemoved}
+        onPlay={roomMusicPlay}
+        onPause={roomMusicPause}
+        onSkip={roomMusicSkip}
+        onVolumeChange={roomMusicVolume}
+        onRemove={null}
       />
       <HelpPanel />
     </div>

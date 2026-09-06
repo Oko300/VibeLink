@@ -42,6 +42,11 @@ export function initSessionSocket(io) {
             }
           });
         }
+        // Send current music state to new viewer
+        const session = sessionStore.get(sessionId);
+        if (session && session.music?.playing) {
+          socket.emit('room_music_update', session.music);
+        }
       }
 
       // Notify everyone in the room that someone joined
@@ -136,6 +141,67 @@ export function initSessionSocket(io) {
       if (socket.data.role !== 'builder') return
       io.to(targetSocketId).emit('you_were_muted')
     });
+
+    // Shared room music handlers
+    socket.on('room_music_play', ({ sessionId, trackIndex, volume }) => {
+      const session = sessionStore.get(sessionId);
+      if (!session) return;
+      session.music = {
+        playing: true,
+        trackIndex: trackIndex ?? session.music?.trackIndex ?? 0,
+        volume: volume ?? session.music?.volume ?? 20,
+        djSocketId: socket.id
+      };
+      // broadcast to everyone in the room including sender
+      io.to(sessionId).emit('room_music_update', session.music);
+      sessionStore.saveSessions(); // Persist changes
+    });
+
+    socket.on('room_music_pause', ({ sessionId }) => {
+      const session = sessionStore.get(sessionId);
+      if (!session) return;
+      // only DJ or host can pause
+      const isHost = session.builderId === socket.id;
+      const isDJ = session.music?.djSocketId === socket.id;
+      if (!isHost && !isDJ) return;
+      session.music.playing = false;
+      io.to(sessionId).emit('room_music_update', session.music);
+      sessionStore.saveSessions(); // Persist changes
+    });
+
+    socket.on('room_music_skip', ({ sessionId, trackIndex }) => {
+      const session = sessionStore.get(sessionId);
+      if (!session) return;
+      const isHost = session.builderId === socket.id;
+      const isDJ = session.music?.djSocketId === socket.id;
+      if (!isHost && !isDJ) return;
+      session.music.trackIndex = trackIndex;
+      session.music.playing = true;
+      io.to(sessionId).emit('room_music_update', session.music);
+      sessionStore.saveSessions(); // Persist changes
+    });
+
+    socket.on('room_music_volume', ({ sessionId, volume }) => {
+      const session = sessionStore.get(sessionId);
+      if (!session) return;
+      const isHost = session.builderId === socket.id;
+      const isDJ = session.music?.djSocketId === socket.id;
+      if (!isHost && !isDJ) return;
+      session.music.volume = volume;
+      io.to(sessionId).emit('room_music_update', session.music);
+      sessionStore.saveSessions(); // Persist changes
+    });
+
+    socket.on('room_music_remove', ({ sessionId }) => {
+      const session = sessionStore.get(sessionId);
+      if (!session) return;
+      // only host can remove music from room
+      if (session.builderId !== socket.id) return;
+      session.music = { playing: false, trackIndex: 0, volume: 20, djSocketId: null };
+      io.to(sessionId).emit('room_music_removed');
+      sessionStore.saveSessions(); // Persist changes
+    });
+
 
     // Ambient "room vibe" music: only the builder may drive it. Broadcast the
     // volume / play state to every viewer in the session (sender excluded).

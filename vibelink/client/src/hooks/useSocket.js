@@ -58,6 +58,8 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
   // Host-driven ("room vibe") ambient music — viewers follow these.
   const [remoteMusicVolume, setRemoteMusicVolume] = useState(null)
   const [remoteMusicState, setRemoteMusicState] = useState(null)
+  const [roomMusic, setRoomMusic] = useState(null);
+  const [musicRemoved, setMusicRemoved] = useState(false);
 
   // Ref mirror so the socket-event closures (registered once per session) always
   // read the freshest TURN credentials rather than the captured default.
@@ -425,6 +427,14 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
     })
 
     // --- audio mute indicators ---
+      socket.on('room_music_update', (musicState) => {
+        setRoomMusic(musicState);
+        setMusicRemoved(false);
+      });
+      socket.on('room_music_removed', () => {
+        setRoomMusic(null);
+        setMusicRemoved(true);
+      });
     socket.on('audio_mute_status', ({ socketId, muted }) => {
       setMicStatus(prev => ({ ...prev, [socketId]: muted }))
     })
@@ -559,12 +569,11 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
   // Builder-only: drive the "room vibe" ambient music for every viewer. The
   // audio itself still plays locally on each device (never over WebRTC); these
   // just sync volume and play/track state via the socket.
-  const hostSetMusicVolume = (volume) => {
-    if (socketRef.current) socketRef.current.emit('host_set_music_volume', { sessionId, volume })
-  }
-  const hostSetMusicPlaying = (playing, trackIndex) => {
-    if (socketRef.current) socketRef.current.emit('host_set_music_playing', { sessionId, playing, trackIndex })
-  }
+  const roomMusicPlay = (trackIndex, volume) => socketRef.current?.emit('room_music_play', { sessionId, trackIndex, volume });
+  const roomMusicPause = () => socketRef.current?.emit('room_music_pause', { sessionId });
+  const roomMusicSkip = (trackIndex) => socketRef.current?.emit('room_music_skip', { sessionId, trackIndex });
+  const roomMusicVolume = (volume) => socketRef.current?.emit('room_music_volume', { sessionId, volume });
+  const roomMusicRemove = () => socketRef.current?.emit('room_music_remove', { sessionId });
 
   return {
     messages,
@@ -576,6 +585,7 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
     remoteStream,
     sessionPaused,
     socket: socketRef.current,
+    socketId: socketRef.current?.id, // Added socketId
     // audio
     getUserAudio,
     muteAudio,
@@ -585,10 +595,13 @@ export function useSocket(sessionId, displayName, role, shouldJoin, identity) {
     micActive,
     micMuted,
     mutedByHost,
-    // host-controlled ambient music ("room vibe")
-    remoteMusicVolume,
-    remoteMusicState,
-    hostSetMusicVolume,
-    hostSetMusicPlaying
+    // room-controlled ambient music
+    roomMusic,
+    musicRemoved,
+    roomMusicPlay,
+    roomMusicPause,
+    roomMusicSkip,
+    roomMusicVolume,
+    roomMusicRemove
   }
 }

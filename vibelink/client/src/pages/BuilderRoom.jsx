@@ -29,9 +29,9 @@ export default function BuilderRoom() {
   const identity = user ? { username: user.username, profilePicture: user.profilePicture } : null
 
   const {
-    messages, viewers, connected, sendMessage, setLocalStream, socket,
+    messages, viewers, connected, sendMessage, setLocalStream, socket, socketId,
     getUserAudio, muteAudio, hostMuteViewer, micActive, micMuted, micStatus, remoteAudioStreams,
-    hostSetMusicVolume, hostSetMusicPlaying
+    roomMusic, musicRemoved, roomMusicPlay, roomMusicPause, roomMusicSkip, roomMusicVolume, roomMusicRemove
   } = useSocket(sessionId, builderName, 'builder', authReady, identity)
 
   const handleJoinMic = async () => {
@@ -215,8 +215,14 @@ export default function BuilderRoom() {
       {/* Host "room vibe" music — plays locally and broadcasts volume/play to viewers */}
       <AmbientPlayer
         isHost={true}
-        onVolumeChange={hostSetMusicVolume}
-        onPlayingChange={hostSetMusicPlaying}
+        socketId={socketId}
+        roomMusic={roomMusic}
+        musicRemoved={musicRemoved}
+        onPlay={roomMusicPlay}
+        onPause={roomMusicPause}
+        onSkip={roomMusicSkip}
+        onVolumeChange={roomMusicVolume}
+        onRemove={roomMusicRemove}
       />
       <HelpPanel />
     </div>

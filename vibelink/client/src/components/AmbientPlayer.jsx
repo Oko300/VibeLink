@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react'
 const TRACKS = [
   { name: 'Lofi Vibes 1', url: 'https://cdn.pixabay.com/audio/2022/05/27/audio_1808fbf07a.mp3' },
   { name: 'Lofi Vibes 2', url: 'https://cdn.pixabay.com/audio/2022/03/15/audio_8cb3c37bb9.mp3' },
-  { name: 'Lofi Vibes 3', url: 'https://cdn.pixabay.com/audio/2022/01/18/audio_d0c6ff1bab.mp3' }
+  { name: 'Lofi Vibes 3', url: 'https://cdn.pixabay.com/audio/2022/01/18/audio_d0c6ff1bab.mp3' },
+  { name: 'Lofi Vibes 4', url: 'https://cdn.pixabay.com/audio/2022/08/02/audio_884fe92c21.mp3' },
+  { name: 'Lofi Vibes 5', url: 'https://cdn.pixabay.com/audio/2022/10/30/audio_946f99f008.mp3' }
 ];
 
 const VOLUME_KEY = 'vibelink_music_volume'
@@ -15,10 +17,14 @@ const VOLUME_KEY = 'vibelink_music_volume'
 // socket (see useSocket), and every viewer still owns their local volume on top.
 export default function AmbientPlayer({
   isHost = false,
-  remoteMusicVolume,
-  remoteMusicState,
+  socketId = null,
+  roomMusic = null,
+  musicRemoved = false,
+  onPlay,
+  onPause,
+  onSkip,
   onVolumeChange,
-  onPlayingChange,
+  onRemove
 }) {
   const audioRef = useRef(null)
   const [isPlaying, setIsPlaying] = useState(false)
@@ -30,6 +36,7 @@ export default function AmbientPlayer({
       const n = saved != null ? Number(saved) : 20
       return Number.isFinite(n) && n >= 0 && n <= 100 ? n : 20
     } catch {
+  const canControl = isHost || (roomMusic?.djSocketId === socketId) || !roomMusic?.playing;
       return 20
     }
   })
@@ -45,6 +52,37 @@ export default function AmbientPlayer({
     }
   };
 
+  useEffect(() => {
+    if (!roomMusic || !audioRef.current) return;
+
+    // sync track
+    if (roomMusic.trackIndex !== currentTrack) {
+      setCurrentTrack(roomMusic.trackIndex);
+      audioRef.current.src = TRACKS[roomMusic.trackIndex].url;
+      audioRef.current.load();
+    }
+
+    // sync volume
+    const vol = (roomMusic.volume ?? 20) / 100;
+    audioRef.current.volume = vol;
+    setVolume(roomMusic.volume ?? 20);
+
+    // sync play state
+    if (roomMusic.playing && !isPlaying) {
+      audioRef.current.play().catch(() => {});
+      setIsPlaying(true);
+    } else if (!roomMusic.playing && isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [roomMusic, isPlaying, currentTrack, volume]); // Added isPlaying, currentTrack, volume to dependencies
+
+  useEffect(() => {
+    if (musicRemoved && audioRef.current) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [musicRemoved]);
   // Apply volume to the element in real time.
   useEffect(() => {
     if (audioRef.current) audioRef.current.volume = volume / 100
@@ -54,10 +92,14 @@ export default function AmbientPlayer({
   // Intentionally depends only on trackIndex so pressing play doesn't double-fire.
   useEffect(() => {
     if (!audioRef.current) return;
+    const wasPlaying = isPlaying;
     audioRef.current.src = TRACKS[trackIndex].url;
     audioRef.current.load();
-    if (isPlaying) {
-      safePlay();
+    if (wasPlaying) {
+      audioRef.current.play().catch(err => {
+        console.warn('Play after track change failed:', err);
+        setIsPlaying(false);
+      });
     }
   }, [trackIndex]);
 
@@ -66,8 +108,11 @@ export default function AmbientPlayer({
     if (audioRef.current) {
       audioRef.current.onerror = () => {
         console.error('Audio loading error for track:', TRACKS[trackIndex].name);
-        const next = (trackIndex + 1) % TRACKS.length;
-        setTrackIndex(next);
+      };
+      audioRef.current.onended = () => {
+        if (!audioRef.current) return;
+        audioRef.current.currentTime = 0;
+        audioRef.current.play().catch(() => {});
       };
     }
   }, [trackIndex]);
@@ -84,6 +129,21 @@ export default function AmbientPlayer({
   // Viewer: follow the host's play state and current track.
   useEffect(() => {
     if (remoteMusicState != null && !isHost && audioRef.current) {
+  const togglePlay = () => {
+    if (!audioRef.current) return;
+    if (isPlaying) {
+      audioRef.current.pause();
+      setIsPlaying(false);
+      if (onPlayingChange) onPlayingChange(false, trackIndex);
+    } else {
+      audioRef.current.play().catch(err => {
+        console.warn('Play failed:', err);
+        setIsPlaying(false);
+      });
+      setIsPlaying(true);
+      if (onPlayingChange) onPlayingChange(true, trackIndex);
+    }
+  }
       setTrackIndex(remoteMusicState.trackIndex)
       if (remoteMusicState.playing) {
         setIsPlaying(true)
@@ -106,19 +166,21 @@ export default function AmbientPlayer({
       setIsPlaying(false)
       if (isHost && onPlayingChange) onPlayingChange(false, trackIndex)
     } else {
+      {(roomMusic?.djSocketId && roomMusic.djSocketId === socketId) && (
+        <div style={{ fontSize: '11px', color: '#2dd4bf', textAlign: 'right', marginBottom: '4px' }}>🎧 You are DJ</div>
+      )}
+      {(roomMusic?.djSocketId && roomMusic.djSocketId !== socketId) && (
+        <div style={{ fontSize: '11px', color: '#2dd4bf', textAlign: 'right', marginBottom: '4px' }}>🎧 Someone is DJ</div>
+      )}
       audio.volume = volume / 100
       safePlay()
       if (isHost && onPlayingChange) onPlayingChange(true, trackIndex)
     }
   }
 
-  const skip = () => {
-    const next = (trackIndex + 1) % TRACKS.length
-    setTrackIndex(next)
-    if (isHost && onPlayingChange) onPlayingChange(true, next)
-  }
 
-  const handleEnded = () => setTrackIndex((i) => (i + 1) % TRACKS.length)
+
+
 
   const handleVolume = (e) => {
     const v = Number(e.target.value)
@@ -140,10 +202,21 @@ export default function AmbientPlayer({
           playsInline={true}
           preload="none"
           crossOrigin="anonymous"
-          onEnded={handleEnded}
+
         />
         <button
-          onClick={togglePlay}
+          onClick={() => {
+            if (!canControl) return;
+            if (isPlaying) {
+              audioRef.current?.pause();
+              setIsPlaying(false);
+              if (onPause) onPause();
+            } else {
+              audioRef.current?.play().catch(() => {});
+              setIsPlaying(true);
+              if (onPlay) onPlay(currentTrack, volume);
+            }
+          }}
           style={{
             background: isPlaying ? 'transparent' : '#2dd4bf',
             border: isPlaying ? '1px solid #444' : 'none',
@@ -153,26 +226,62 @@ export default function AmbientPlayer({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            cursor: 'pointer',
             color: isPlaying ? '#888' : '#0a0a0a',
             fontSize: '14px',
-            flexShrink: 0
+            flexShrink: 0,
+            opacity: canControl ? 1 : 0.4,
+            cursor: canControl ? 'pointer' : 'not-allowed'
           }}
-          title={isPlaying ? 'Pause music' : 'Play music'}
+          title={canControl ? (isPlaying ? 'Pause music' : 'Play music') : 'Only the host or DJ can control music'}
           aria-label={isPlaying ? 'Pause music' : 'Play music'}
+          disabled={!canControl}
         >
           {isPlaying ? '⏸' : '▶'}
         </button>
+        <button
+          onClick={() => {
+            if (!canControl) return;
+            const next = (currentTrack + 1) % TRACKS.length;
+      {isHost && (
+        <button
+          onClick={() => { if (onRemove) onRemove(); }}
+          style={{
+            fontSize: '11px',
+            color: '#ef4444',
+            background: 'none',
+            border: 'none',
+            cursor: 'pointer',
+            marginTop: '4px',
+            textAlign: 'right',
+            display: 'block'
+          }}
+        >
+          Remove music from room
+        </button>
+      )}
+            if (onSkip) onSkip(next);
+          }}
+          style={{ ...styles.iconBtn, opacity: canControl ? 1 : 0.4, cursor: canControl ? 'pointer' : 'not-allowed' }}
+          title={canControl ? 'Next track' : 'Only the host or DJ can control music'}
+          aria-label="Next track"
+          disabled={!canControl}
+        >⏭</button>
         <span style={styles.label}>Lofi Vibes {trackIndex + 1}/{TRACKS.length}</span>
         <input
           type="range"
           min="0"
           max="100"
           value={volume}
-          onChange={handleVolume}
-          style={styles.slider}
-          title="Music volume"
+          onChange={(e) => {
+            const v = Number(e.target.value);
+            setVolume(v);
+            if (audioRef.current) audioRef.current.volume = v / 100;
+            if (canControl && onVolumeChange) onVolumeChange(v);
+          }}
+          style={{ ...styles.slider, opacity: canControl ? 1 : 0.4, cursor: canControl ? 'pointer' : 'not-allowed' }}
+          title={canControl ? 'Music volume' : 'Only the host or DJ can control music'}
           aria-label="Music volume"
+          disabled={!canControl}
         />
         <button onClick={skip} style={styles.iconBtn} title="Next track" aria-label="Next track">⏭</button>
       </div>
