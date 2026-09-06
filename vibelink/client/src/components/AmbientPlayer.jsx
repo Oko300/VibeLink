@@ -26,20 +26,21 @@ export default function AmbientPlayer({
   onVolumeChange,
   onRemove
 }) {
-  const audioRef = useRef(null)
-  const [isPlaying, setIsPlaying] = useState(false)
-  const [trackIndex, setTrackIndex] = useState(0)
-
+  const [currentTrack, setCurrentTrack] = useState(0);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(() => {
     try {
-      const saved = localStorage.getItem(VOLUME_KEY)
-      const n = saved != null ? Number(saved) : 20
-      return Number.isFinite(n) && n >= 0 && n <= 100 ? n : 20
+      const saved = localStorage.getItem(VOLUME_KEY);
+      const n = saved != null ? Number(saved) : 20;
+      return Number.isFinite(n) && n >= 0 && n <= 100 ? n : 20;
     } catch {
-  const canControl = isHost || (roomMusic?.djSocketId === socketId) || !roomMusic?.playing;
-      return 20
+      return 20;
     }
-  })
+  });
+
+  const audioRef = useRef(null);
+
+  const canControl = isHost || (roomMusic?.djSocketId === socketId) || !roomMusic?.playing;
 
   const safePlay = () => {
     if (!audioRef.current) return;
@@ -93,7 +94,7 @@ export default function AmbientPlayer({
   useEffect(() => {
     if (!audioRef.current) return;
     const wasPlaying = isPlaying;
-    audioRef.current.src = TRACKS[trackIndex].url;
+    audioRef.current.src = TRACKS[currentTrack].url;
     audioRef.current.load();
     if (wasPlaying) {
       audioRef.current.play().catch(err => {
@@ -266,7 +267,7 @@ export default function AmbientPlayer({
           aria-label="Next track"
           disabled={!canControl}
         >⏭</button>
-        <span style={styles.label}>Lofi Vibes {trackIndex + 1}/{TRACKS.length}</span>
+        <span style={styles.label}>Lofi Vibes {currentTrack + 1}/{TRACKS.length}</span>
         <input
           type="range"
           min="0"
@@ -283,7 +284,7 @@ export default function AmbientPlayer({
           aria-label="Music volume"
           disabled={!canControl}
         />
-        <button onClick={skip} style={styles.iconBtn} title="Next track" aria-label="Next track">⏭</button>
+
       </div>
       <div style={{ fontSize: '8px', color: 'var(--clr-text-dim)', textAlign: 'center', marginTop: '2px' }}>
         Music: Kevin MacLeod (incompetech.com) CC BY 4.0
