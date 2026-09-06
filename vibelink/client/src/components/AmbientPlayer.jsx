@@ -13,13 +13,18 @@ export default function AmbientPlayer({ isHost = false }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(20);
   const audioRef = useRef(null);
+  const isPlayingRef = useRef(false);
+
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
 
   useEffect(() => {
     if (!audioRef.current) return;
-    audioRef.current.volume = volume / 100;
     audioRef.current.src = TRACKS[currentTrack].url;
+    audioRef.current.volume = volume / 100;
     audioRef.current.load();
-    if (isPlaying) {
+    if (isPlayingRef.current) {
       audioRef.current.play().catch(() => setIsPlaying(false));
     }
   }, [currentTrack]);
